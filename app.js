@@ -279,16 +279,97 @@
       Multiple-choice and short answers are marked automatically. For written answers, compare yours with the mark scheme and award your own marks honestly.</p><div id="lst"></div>`;
     testList($("#lst", el), s, s.papers, "paper");
   }
+  // Each tip gets a picture category from its wording, so content files stay plain text.
+  const TIP_KINDS = [
+    { key: "command", icon: "🗣️", label: "Command words", color: "#7c3aed", re: /command word/i },
+    { key: "practice", icon: "🔁", label: "Practise", color: "#d97706", re: /practi[cs]e|revis|routine|flashcard|daily|every day|memori[sz]e|error log|foundations/i },
+    { key: "time", icon: "⏱️", label: "Time", color: "#2563eb", re: /\bminutes?\b|\bseconds?\b|time management|manage (your )?time|timing|budget|stuck|move on|per mark/i },
+    { key: "check", icon: "✅", label: "Check", color: "#0d9488", re: /\bcheck|\bunits?\b|re-?read|proofread|estimate/i },
+    { key: "read", icon: "🔍", label: "Read carefully", color: "#9333ea", re: /\bread\b|underline|question first|passage|source|scan|highlight/i },
+    { key: "avoid", icon: "⚠️", label: "Avoid mistakes", color: "#dc2626", re: /mistake|never|don['’]t|do not|avoid|wrong|lose marks|lost marks|zero/i },
+    { key: "marks", icon: "✍️", label: "Earn marks", color: "#16a34a", re: /\bmarks?\b|method|working|show|step|examiner/i },
+  ];
+  const TIP_DEFAULT = { key: "idea", icon: "💡", label: "Smart idea", color: "#475569" };
+  const plain = (x) => x.replace(/<[^>]+>/g, "");
+  // The headline says what a tip is about; the detail is only a fallback (and too often mentions
+  // minutes in passing to count as a time tip).
+  const tipKind = (head, body) => (head && TIP_KINDS.find((k) => k.re.test(plain(head))))
+    || TIP_KINDS.find((k) => k.key !== "time" && k.re.test(plain(body))) || TIP_DEFAULT;
+
+  // Split a tip into a short headline and the detail underneath.
+  const capFirst = (x) => x.replace(/^(\s*(?:<[^>]+>\s*)*)([a-z])/, (m, pre, c) => pre + c.toUpperCase());
+  function splitTip(t) {
+    const bold = t.match(/^\s*<b>([\s\S]+?)<\/b>\s*([\s\S]*)$/);
+    if (bold) return { head: bold[1].replace(/[.:]\s*$/, ""), body: capFirst(bold[2]) };
+    const balanced = (x) => (x.match(/<b>/g) || []).length === (x.match(/<\/b>/g) || []).length;
+    for (const m of t.matchAll(/[.:!?](?=\s+)/g)) {
+      const head = t.slice(0, m.index + 1);
+      if (head.length < 10 || /\b(e\.g|i\.e|etc|vs|approx)\.$/i.test(head) || !balanced(head)) continue;
+      if (head.length > 120) break;
+      return { head: head.replace(/[.:]$/, ""), body: capFirst(t.slice(m.index + 1).trim()) };
+    }
+    return { head: "", body: t };
+  }
+
   function secTips(el, s) {
-    el.innerHTML = `<div class="card"><h3>How to move from average to outstanding in ${esc(s.name)}</h3>
-      <ol class="tips">${s.tips.map((t) => `<li>${t}</li>`).join("")}</ol></div>
-      <div class="card"><h3>General exam technique</h3><ul class="tips">
-        <li><b>Read the command word:</b> <i>state</i> = short answer, <i>describe</i> = what happens, <i>explain</i> = why (use "because"), <i>evaluate</i> = strengths and weaknesses, then a judgement.</li>
-        <li><b>Marks tell you how much to write:</b> a 3-mark question needs about 3 separate points or steps.</li>
-        <li><b>Show your working:</b> method marks are often awarded even when the final answer is wrong.</li>
-        <li><b>Never leave a blank:</b> a sensible attempt can earn marks, and a blank never does.</li>
-        <li><b>Leave 5 minutes to check:</b> units, rounding, spelling of key words, and that every part (a), (b), (c) is answered.</li>
-      </ul></div>`;
+    const tips = s.tips.map((t, i) => { const p = splitTip(t); return { i, ...p, kind: tipKind(p.head, p.body) }; });
+    const used = TIP_KINDS.concat([TIP_DEFAULT]).filter((k) => tips.some((t) => t.kind.key === k.key));
+    el.innerHTML = `
+      <div class="card">
+        <h3>How to move from average to outstanding in ${esc(s.name)}</h3>
+        <div class="row tip-filters">
+          <button class="chip on" data-kind="all">All tips</button>
+          ${used.map((k) => `<button class="chip" data-kind="${k.key}" style="--k:${k.color}">${k.icon} ${k.label}</button>`).join("")}
+        </div>
+      </div>
+      <div class="tip-grid">
+        ${tips.map((t) => `
+          <div class="tip-card" data-kind="${t.kind.key}" style="--k:${t.kind.color}">
+            <div class="tip-top"><span class="tip-icon">${t.kind.icon}</span><span class="tip-num">${t.i + 1}</span><span class="tip-label">${t.kind.label}</span></div>
+            ${t.head ? `<div class="tip-head">${t.head}</div>` : ""}
+            <div class="tip-body">${t.body}</div>
+          </div>`).join("")}
+      </div>
+
+      <div class="card">
+        <h3>🗣️ Command words: how deep to go</h3>
+        <div class="ladder">
+          <div class="step" style="--k:#2563eb"><div class="big">📝</div><b>State / Give</b><span>A short fact.<br>No reason needed.</span><em>1 line</em></div>
+          <div class="arrow">➜</div>
+          <div class="step" style="--k:#0d9488"><div class="big">👀</div><b>Describe</b><span>Say what happens<br>or the pattern.</span><em>2–3 lines</em></div>
+          <div class="arrow">➜</div>
+          <div class="step" style="--k:#d97706"><div class="big">🤔</div><b>Explain</b><span>Say <u>why</u>.<br>Use "because…"</span><em>Point + reason</em></div>
+          <div class="arrow">➜</div>
+          <div class="step" style="--k:#dc2626"><div class="big">⚖️</div><b>Evaluate</b><span>For ✔ and against ✘,<br>then your verdict.</span><em>Both sides + judgement</em></div>
+        </div>
+        <p class="small muted" style="margin-top:10px">The further right the word, the deeper your answer must go.</p>
+      </div>
+
+      <div class="card">
+        <h3>🎯 Marks = points to make</h3>
+        <div class="marks-viz">
+          ${[1, 2, 3, 4].map((n) => `<div class="mrow"><span class="mlabel">${n} mark${n > 1 ? "s" : ""}</span>
+            <span class="dots">${"●".repeat(n)}</span><span class="small">→ ${["one fact or answer", "two points, or method + answer", "three separate points or steps", "four points, or a full worked method"][n - 1]}</span></div>`).join("")}
+        </div>
+        <p class="small muted">Write each point as its own sentence, or each step on its own line, so the examiner can tick every one.</p>
+      </div>
+
+      <div class="card">
+        <h3>🗓️ Exam day plan</h3>
+        <div class="timeline">
+          <div class="tl" style="--k:#2563eb"><div class="tl-dot">🌙</div><b>Night before</b><ul><li>Sleep 8+ hours</li><li>Pack pen, pencil, ruler, calculator</li><li>Light review only, nothing new</li></ul></div>
+          <div class="tl" style="--k:#7c3aed"><div class="tl-dot">🔍</div><b>First 5 minutes</b><ul><li>Read every question</li><li>Spot the easy marks</li><li>Plan about 1 minute per mark</li></ul></div>
+          <div class="tl" style="--k:#16a34a"><div class="tl-dot">✍️</div><b>During</b><ul><li>Show all working</li><li>Stuck for 2 minutes? Skip and come back</li><li>Never leave a blank</li></ul></div>
+          <div class="tl" style="--k:#0d9488"><div class="tl-dot">✅</div><b>Last 5 minutes</b><ul><li>Units and rounding</li><li>Every part (a), (b), (c) done</li><li>Spelling of key words</li></ul></div>
+        </div>
+      </div>`;
+
+    el.querySelectorAll(".chip").forEach((c) => (c.onclick = () => {
+      el.querySelectorAll(".chip").forEach((x) => x.classList.toggle("on", x === c));
+      el.querySelectorAll(".tip-card").forEach((card) => {
+        card.style.display = c.dataset.kind === "all" || card.dataset.kind === c.dataset.kind ? "" : "none";
+      });
+    }));
   }
 
   // ---------- test runner ----------
