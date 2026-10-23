@@ -236,6 +236,12 @@
           <button class="btn" id="saveCode">Save code</button></div>
         <p class="small" id="codeMsg"></p>
       </div>
+      <div class="card"><h3>📧 Email test results to</h3>
+        <p class="small muted">Every 10 minutes, newly completed tests are emailed to this address with each score and the topics to revise. Leave it empty to stop the emails.</p>
+        <div class="row"><input class="inline" id="notify" type="email" value="${esc(s.notify_email || "")}" placeholder="name@example.com" style="min-width:260px">
+          <button class="btn" id="saveNotify">Save</button></div>
+        <p class="small" id="notifyMsg"></p>
+      </div>
       <div class="card"><h3>School / class name</h3>
         <div class="row"><input class="inline" id="school" value="${esc(s.school_name)}" style="min-width:240px"><button class="btn secondary" id="saveSchool">Save</button></div>
       </div>
@@ -256,7 +262,12 @@
       if (code.length < 4) { $("#codeMsg", el).textContent = "Use at least 4 characters."; return; }
       save({ join_code: code }, $("#codeMsg", el));
     };
-    $("#saveSchool", el).onclick = () => save({ school_name: $("#school", el).value.trim() || "Checkpoint Prep" }, null);
+    $("#saveNotify", el).onclick = () => {
+      const v = $("#notify", el).value.trim();
+      if (v && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) { $("#notifyMsg", el).style.color = "var(--bad)"; $("#notifyMsg", el).textContent = "That doesn't look like an email address."; return; }
+      save({ notify_email: v || null }, $("#notifyMsg", el));
+    };
+    $("#saveSchool", el).onclick =() => save({ school_name: $("#school", el).value.trim() || "Checkpoint Prep" }, null);
     $("#csv2", el).onclick = exportCsv;
   }
 

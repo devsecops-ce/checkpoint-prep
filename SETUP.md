@@ -32,6 +32,20 @@ After Part 1 it switches to **multi-user mode** automatically: logins, cloud syn
 7. As admin, go to **🛠 Admin → Settings** and set your **class join code**. The default is `CHECKPOINT8`.
    Give this code to your students. They use it to create their own accounts.
 
+### Get every test result by email (free, about 5 minutes)
+Once this is set up, completed tests are emailed to **parepalli.satheesh@gmail.com** every 10 minutes.
+Each email lists the student, test, score and topics to revise.
+1. Go to **https://resend.com** and sign up **with parepalli.satheesh@gmail.com**.
+   On the free plan, Resend can only send to the email address you signed up with, which is exactly what we need.
+2. In Resend, open **API Keys → Create API key** (permission: *Sending access*) and copy the key. It starts with `re_`.
+3. In Supabase, open **SQL Editor → New query**, paste this with your key in place of the example, and click **Run**:
+   ```sql
+   select vault.create_secret('re_YOUR_KEY_HERE', 'resend_api_key');
+   ```
+4. Done. Take a quick test in the app; the email arrives 10–20 minutes later.
+   You can change the address under **🛠 Admin → Settings → Email test results to**.
+   To send to a different address, sign up to Resend with that address, or verify your own domain in Resend.
+
 ### What the admin panel does
 | Tab | What you can do |
 |---|---|
