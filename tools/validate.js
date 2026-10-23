@@ -6,7 +6,7 @@ const vm = require("vm");
 const dataDir = path.join(__dirname, "..", "data");
 const files = process.argv.slice(2).length
   ? process.argv.slice(2)
-  : fs.readdirSync(dataDir).filter((f) => f.endsWith(".js") && f !== "pastpapers.js").map((f) => path.join(dataDir, f));
+  : fs.readdirSync(dataDir).filter((f) => f.endsWith(".js")).map((f) => path.join(dataDir, f));
 
 let errors = 0;
 const err = (f, msg) => { errors++; console.error(`✗ ${path.basename(f)}: ${msg}`); };

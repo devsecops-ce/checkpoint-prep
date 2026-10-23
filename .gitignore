@@ -3,3 +3,4 @@ ios/*.xcodeproj/xcuserdata/
 ios/*.xcodeproj/project.xcworkspace/xcuserdata/
 .DS_Store
 site/
+netlify-proxy/

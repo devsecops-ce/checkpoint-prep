@@ -78,7 +78,7 @@ struct WebAppView: UIViewRepresentable {
             decisionHandler(.allow)
         }
 
-        // target="_blank" links (past-paper PDFs) ask for a new window; open them in Safari instead.
+        // target="_blank" links ask for a new window; open them in Safari instead.
         func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                      for action: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
             if let url = action.request.url, ["http", "https"].contains(url.scheme ?? "") {

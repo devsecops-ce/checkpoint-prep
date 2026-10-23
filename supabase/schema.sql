@@ -155,25 +155,6 @@ $$;
 revoke all on function public.delete_my_account() from public, anon;
 grant execute on function public.delete_my_account() to authenticated;
 
--- ---------- past papers (links to official papers the school is licensed to use) ----------
-create table if not exists public.past_papers (
-  id bigint generated always as identity primary key,
-  subject_id text not null,
-  year int not null check (year between 2000 and 2100),
-  session text not null default 'May',
-  paper text not null,
-  qp_url text not null check (qp_url ~* '^https?://'),
-  ms_url text check (ms_url is null or ms_url ~* '^https?://'),
-  notes text,
-  created_at timestamptz not null default now()
-);
-alter table public.past_papers enable row level security;
-drop policy if exists past_read on public.past_papers;
-drop policy if exists past_admin on public.past_papers;
-create policy past_read  on public.past_papers for select using (public.is_active());
-create policy past_admin on public.past_papers for all using (public.is_admin()) with check (public.is_admin());
-grant select, insert, update, delete on public.past_papers to authenticated;
 
--- allow students to record their past-paper scores
-alter table public.attempts drop constraint if exists attempts_kind_check;
-alter table public.attempts add constraint attempts_kind_check check (kind in ('quick', 'paper', 'past'));
+-- ---------- cleanup of a removed feature (safe to re-run) ----------
+drop table if exists public.past_papers;

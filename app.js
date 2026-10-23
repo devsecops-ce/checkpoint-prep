@@ -37,7 +37,7 @@
   }
   function fromHash() {
     const [s, sec] = location.hash.replace(/^#\/?/, "").split("/");
-    if (s && (SUBJECTS.some((x) => x.id === s) || s === "past" || (s === "admin" && isAdmin()))) { state.subject = s; state.section = sec || "overview"; }
+    if (s && (SUBJECTS.some((x) => x.id === s) || (s === "admin" && isAdmin()))) { state.subject = s; state.section = sec || "overview"; }
   }
 
   // ---------- theme ----------
@@ -91,7 +91,6 @@
       nav.appendChild(b);
     };
     mk("home", "🏠 Dashboard");
-    mk("past", "📄 Past Papers", "#334155");
     SUBJECTS.forEach((s) => mk(s.id, `${s.icon} ${esc(s.name)}`, s.color));
     if (isAdmin()) mk("admin", "🛠 Admin", "#475569");
   }
@@ -478,130 +477,8 @@
     view.style.removeProperty("--c");
     view.classList.remove("admin");
     if (state.subject === "admin" && isAdmin() && window.Admin) return window.Admin.render(view, SUBJECTS);
-    if (state.subject === "past") return renderPast(view);
     const s = SUBJECTS.find((x) => x.id === state.subject);
     if (!s) renderHome(view); else renderSubject(view, s);
-  }
-
-  // ---------- past papers ----------
-  // Official papers are Cambridge copyright, so the app only links to copies the admin's school is licensed to use.
-  let pastCache = null;
-  const safeUrl = (u) => (/^https?:\/\//i.test(u || "") ? u : null);
-
-  async function renderPast(view) {
-    let papers = window.PAST_PAPERS || [];
-    if (Cloud.enabled) {
-      if (!pastCache) {
-        view.innerHTML = `<div class="card muted">Loading past papers…</div>`;
-        try { pastCache = await Cloud.listPastPapers(); }
-        catch (e) { view.innerHTML = `<div class="card">Could not load past papers: ${esc(Cloud.friendly(e))}</div>`; return; }
-        if (state.subject !== "past") return;
-      }
-      papers = pastCache;
-    }
-    const admin = isAdmin();
-    const subjName = (id) => { const s = SUBJECTS.find((x) => x.id === id); return s ? `${s.icon} ${esc(s.name)}` : esc(id); };
-
-    let html = `<div class="card">
-        <h2>📄 Official past papers</h2>
-        <p class="muted">How to get the most from a past paper:</p>
-        <ol class="tips small">
-          <li>Open the <b>question paper</b>, set a timer for the real exam time, and work on paper with no notes.</li>
-          <li>Open the <b>mark scheme</b> and mark your answers strictly. Note every mark you lost and why.</li>
-          <li>Enter your score below so your progress is tracked, then revise the topics you dropped marks on in the subject tabs.</li>
-          <li>Redo the questions you got wrong one week later.</li>
-        </ol>
-        <p class="small muted">Past papers are copyright Cambridge University Press &amp; Assessment. Schools get them from the Cambridge School Support Hub. Please keep these links within your class.</p>
-      </div>`;
-
-    if (admin) {
-      html += `<div class="card admin"><h3>Add a past paper</h3>
-        <p class="small muted">Upload the PDFs your school gives you to Google Drive (Share → "Anyone with the link") or a similar service, then paste the links here.</p>
-        <form id="ppForm" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))">
-          <label class="small">Subject<select name="subject_id">${SUBJECTS.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></label>
-          <label class="small">Year<input name="year" type="number" min="2000" max="2100" value="${new Date().getFullYear() - 1}" required></label>
-          <label class="small">Session<select name="session"><option>May</option><option>October</option><option>April</option><option>Specimen</option></select></label>
-          <label class="small">Paper<input name="paper" placeholder="Paper 1" required></label>
-          <label class="small" style="grid-column:1/-1">Question paper link<input name="qp_url" type="url" placeholder="https://…" required></label>
-          <label class="small" style="grid-column:1/-1">Mark scheme link (optional)<input name="ms_url" type="url" placeholder="https://…"></label>
-          <label class="small" style="grid-column:1/-1">Note (optional)<input name="notes" placeholder="e.g. Non-calculator, 45 minutes"></label>
-          <div><button class="btn" type="submit">Add paper</button></div>
-        </form><p class="small" id="ppMsg"></p></div>`;
-    }
-
-    if (!papers.length) {
-      html += `<div class="card muted">${admin ? "No past papers yet. Add the ones your school provides using the form above."
-        : Cloud.enabled ? "No past papers have been added yet. Your teacher or admin can add them."
-        : "No past papers yet. Add links to the papers your school provides in <code>data/pastpapers.js</code>."}</div>`;
-    }
-
-    SUBJECTS.forEach((s) => {
-      const list = papers.filter((p) => p.subject_id === s.id).sort((a, b) => b.year - a.year || String(a.paper).localeCompare(b.paper));
-      if (!list.length) return;
-      const prog = subj(s.id);
-      html += `<h3 class="strand-h">${subjName(s.id)}</h3>`;
-      list.forEach((p) => {
-        const r = prog.tests["past-" + p.id];
-        const qp = safeUrl(p.qp_url), ms = safeUrl(p.ms_url);
-        html += `<div class="card">
-          <div class="row"><b>${esc(p.year)} · ${esc(p.session)} · ${esc(p.paper)}</b>${p.notes ? `<span class="small muted">${esc(p.notes)}</span>` : ""}
-            <span class="spacer"></span>${r ? `<span class="pill ${grade(pct(r.best, r.max)).cls}">Best ${r.best}/${r.max} (${pct(r.best, r.max)}%)</span>` : ""}</div>
-          <div class="row" style="margin-top:10px">
-            ${qp ? `<a class="btn" href="${esc(qp)}" target="_blank" rel="noopener">Question paper</a>` : ""}
-            ${ms ? `<a class="btn secondary" href="${esc(ms)}" target="_blank" rel="noopener">Mark scheme</a>` : ""}
-            <span class="spacer"></span>
-            <span class="small">My score</span>
-            <input class="pp-got" data-id="${esc(p.id)}" type="number" min="0" style="width:70px;padding:6px" placeholder="0">
-            <span>/</span>
-            <input class="pp-max" data-id="${esc(p.id)}" type="number" min="1" style="width:70px;padding:6px" value="${r ? r.max : 50}">
-            <button class="btn secondary" data-ppsave="${esc(p.id)}">Save</button>
-            ${admin ? `<button class="ghost small" data-ppdel="${esc(p.id)}" style="color:var(--bad)">Delete</button>` : ""}
-          </div>
-          <p class="small" data-ppmsg="${esc(p.id)}" style="margin:6px 0 0"></p>
-        </div>`;
-      });
-    });
-    view.innerHTML = html;
-
-    view.querySelectorAll("[data-ppsave]").forEach((b) => (b.onclick = () => {
-      const id = b.dataset.ppsave;
-      const p = papers.find((x) => String(x.id) === id);
-      const got = parseInt(view.querySelector(`.pp-got[data-id="${id}"]`).value, 10);
-      const max = parseInt(view.querySelector(`.pp-max[data-id="${id}"]`).value, 10);
-      const msg = view.querySelector(`[data-ppmsg="${id}"]`);
-      if (!(max > 0) || !(got >= 0) || got > max) { msg.style.color = "var(--bad)"; msg.textContent = "Enter your marks, from 0 up to the total."; return; }
-      const prog = subj(p.subject_id);
-      const prev = prog.tests["past-" + id];
-      prog.tests["past-" + id] = { best: Math.max(got, prev ? prev.best : 0), max, last: got, attempts: (prev ? prev.attempts : 0) + 1, date: Date.now() };
-      save(progress);
-      if (Cloud.enabled) {
-        Cloud.saveAttempt(`past:${id}:${Date.now()}`, {
-          subject_id: p.subject_id, test_id: "past-" + id, test_title: `Past paper ${p.year} ${p.session} ${p.paper}`,
-          kind: "past", score: got, max, topics: {},
-        });
-      }
-      renderPast(view);
-    }));
-
-    view.querySelectorAll("[data-ppdel]").forEach((b) => (b.onclick = async () => {
-      if (!confirm("Delete this past paper link for everyone?")) return;
-      try { await Cloud.deletePastPaper(b.dataset.ppdel); pastCache = pastCache.filter((x) => String(x.id) !== b.dataset.ppdel); renderPast(view); }
-      catch (e) { alert(e.message); }
-    }));
-
-    const form = $("#ppForm", view);
-    if (form) form.onsubmit = async (e) => {
-      e.preventDefault();
-      const f = new FormData(form);
-      const row = {
-        subject_id: f.get("subject_id"), year: parseInt(f.get("year"), 10), session: f.get("session"),
-        paper: f.get("paper").trim(), qp_url: f.get("qp_url").trim(), ms_url: f.get("ms_url").trim() || null, notes: f.get("notes").trim() || null,
-      };
-      const msg = $("#ppMsg", view);
-      if (!safeUrl(row.qp_url) || (row.ms_url && !safeUrl(row.ms_url))) { msg.style.color = "var(--bad)"; msg.textContent = "Links must start with https://"; return; }
-      try { pastCache.unshift(await Cloud.addPastPaper(row)); renderPast(view); }
-      catch (err) { msg.style.color = "var(--bad)"; msg.textContent = err.message; }
-    };
   }
 
   // ---------- accounts ----------
@@ -652,7 +529,6 @@
   }
 
   async function enterApp() {
-    pastCache = null; // never show one user's cached list to the next user
     const view = $("#view");
     view.innerHTML = `<div class="card muted">Loading your progress…</div>`;
     progress = load(); // cached copy for this user, shown if the server can't be reached

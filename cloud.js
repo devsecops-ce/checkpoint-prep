@@ -105,22 +105,6 @@
     return progress;
   };
 
-  // ---------- past papers ----------
-  Cloud.listPastPapers = async function () {
-    const { data, error } = await sb.from("past_papers").select("*").order("year", { ascending: false }).order("paper");
-    if (error) throw error;
-    return data;
-  };
-  Cloud.addPastPaper = async function (row) {
-    const { data, error } = await sb.from("past_papers").insert(row).select().single();
-    if (error) throw new Error(friendly(error));
-    return data;
-  };
-  Cloud.deletePastPaper = async function (id) {
-    const { error } = await sb.from("past_papers").delete().eq("id", id);
-    if (error) throw new Error(friendly(error));
-  };
-
   // ---------- writes, with an offline retry queue ----------
   function readQueue() { try { return JSON.parse(localStorage.getItem(QUEUE_KEY)) || []; } catch (e) { return []; } }
   function writeQueue(q) { try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch (e) {} }

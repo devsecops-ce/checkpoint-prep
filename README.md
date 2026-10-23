@@ -11,7 +11,7 @@ Each subject has:
 - **5 timed mock papers** with worked solutions and mark schemes
 - **Exam tips**
 
-There's also a **Past Papers** tab, where admins link the official papers their school provides, and a **progress dashboard**.
+There's also a **progress dashboard** that tracks scores and points out weak topics.
 
 With [Supabase](https://supabase.com) connected (free plan), it adds **student accounts, cloud sync, and an admin panel**: class overview, per-student results, weak topics, account management and CSV export.
 

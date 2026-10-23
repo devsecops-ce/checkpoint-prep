@@ -172,4 +172,3 @@ ul.tips li { margin-bottom: 8px; }
   .logo { font-size: 26px; }
 }
 .signature { font-family: "Snell Roundhand", "Segoe Script", "Brush Script MT", cursive; font-size: 22px; color: var(--text); margin-bottom: 6px; }
-.pp-got, .pp-max { border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; }
