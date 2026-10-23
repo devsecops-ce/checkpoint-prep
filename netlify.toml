@@ -1,0 +1,10 @@
+# Netlify rebuilds the site on every push to main.
+[build]
+  command = "node tools/validate.js && sh tools/make-site.sh"
+  publish = "site"
+
+# Always check for a new service worker so installed apps pick up updates quickly.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
