@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Checkpoint Prep Stage 8</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Checkpoint">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#2563eb">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🎓</span>
+      <div>
+        <h1>Checkpoint Prep</h1>
+        <p>Cambridge Lower Secondary · Stage 8</p>
+      </div>
+    </div>
+    <div class="row">
+      <div id="userBox" class="row"></div>
+      <button id="themeBtn" class="ghost" title="Toggle dark mode">🌓</button>
+    </div>
+  </header>
+
+  <nav id="subjectTabs" class="tabs" role="tablist"></nav>
+  <main id="view"></main>
+
+  <footer class="foot">
+    <div class="signature">Satheesh K Parepalli</div>
+    Original exam-style practice material. Official Cambridge past papers are available to registered schools via the Cambridge School Support Hub.
+  </footer>
+
+  <script src="data/maths.js"></script>
+  <script src="data/science.js"></script>
+  <script src="data/english.js"></script>
+  <script src="data/esl.js"></script>
+  <script src="data/global.js"></script>
+  <script src="data/computing.js"></script>
+  <script src="data/mathsboost.js"></script>
+  <script src="data/pastpapers.js"></script>
+  <script src="vendor/supabase.js"></script>
+  <script src="config.js"></script>
+  <script src="cloud.js"></script>
+  <script src="admin.js"></script>
+  <script src="app.js"></script>
+  <script>
+    // Service workers need http(s); skipped when opened as a local file or inside the iOS wrapper.
+    if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+      navigator.serviceWorker.register("sw.js").catch(function () {});
+    }
+  </script>
+</body>
+</html>

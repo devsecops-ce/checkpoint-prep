@@ -1,0 +1,44 @@
+# Generates CheckpointPrep.xcodeproj. Run:  cd ios && xcodegen
+name: CheckpointPrep
+options:
+  bundleIdPrefix: com.checkpointprep
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.0"
+    # Set your Apple Developer Team ID here, or pick the team in Xcode → Signing & Capabilities.
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+targets:
+  CheckpointPrep:
+    type: application
+    platform: iOS
+    sources:
+      - path: CheckpointPrep
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.checkpointprep.app
+        PRODUCT_NAME: Checkpoint Prep
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: CheckpointPrep/Info.plist
+    preBuildScripts: []
+    postCompileScripts:
+      - name: Bundle web app
+        basedOnDependencyAnalysis: false
+        script: |
+          # Copies the web app (one shared source for browser and iOS) into the app bundle.
+          set -e
+          SRC="${PROJECT_DIR}/.."
+          DEST="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/www"
+          mkdir -p "$DEST"
+          rsync -a --delete \
+            --include='/index.html' --include='/styles.css' --include='/*.js' \
+            --include='/data/***' --include='/vendor/***' --exclude='*' \
+            "$SRC/" "$DEST/"
