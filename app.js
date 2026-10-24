@@ -118,7 +118,7 @@
   }
   const isAdmin = () => Cloud.enabled && Cloud.profile && Cloud.profile.role === "admin";
   // Logged-out visitors can still use these tabs; everything else needs an account.
-  const PUBLIC_TABS = ["mathsboost", "news"];
+  const PUBLIC_TABS = ["mathsboost", "rishitha", "news"];
   const guest = () => Cloud.enabled && !Cloud.user;
   // With accounts on, the public tabs live only on the login page.
   const memberSubjects = () => (Cloud.enabled ? SUBJECTS.filter((s) => !PUBLIC_TABS.includes(s.id)) : SUBJECTS);
@@ -304,7 +304,7 @@
   }
   function secPapers(el, s) {
     el.innerHTML = s.labels && s.labels.papers
-      ? `<p class="muted">Start at Level 1, even if it feels easy, because it finds hidden gaps. Score 80% or more to move up a level. Short answers are marked instantly. For written answers, compare yours with the mark scheme and award your own marks honestly.</p><div id="lst"></div>`
+      ? `<p class="muted">Start with the first one, even if it feels easy, because it finds hidden gaps. Score 80% or more before moving on to the next. Short answers are marked instantly. For written answers, compare yours with the mark scheme and award your own marks honestly.</p><div id="lst"></div>`
       : `<p class="muted">Five full exam-style mock papers with worked solutions and mark schemes. Sit them timed.
       Multiple-choice and short answers are marked automatically. For written answers, compare yours with the mark scheme and award your own marks honestly.</p><div id="lst"></div>`;
     testList($("#lst", el), s, s.papers, "paper");
