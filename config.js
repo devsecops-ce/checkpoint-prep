@@ -4,4 +4,6 @@
 window.APP_CONFIG = {
   supabaseUrl: "",
   supabaseAnonKey: "",
+  // Set to true after turning on Google in Supabase → Authentication → Sign In / Providers (see SETUP.md).
+  googleSignIn: false,
 };

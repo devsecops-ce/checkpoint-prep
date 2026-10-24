@@ -7,6 +7,8 @@
   const QUEUE_KEY = "cp8.syncQueue.v1";
 
   const Cloud = { enabled, user: null, profile: null, client: null };
+  // Google blocks sign-in inside embedded app web views, so only offer it on the real website.
+  Cloud.googleEnabled = enabled && cfg.googleSignIn === true && /^https?:$/.test(location.protocol);
   if (!enabled) { window.Cloud = Cloud; return; }
 
   const sb = (Cloud.client = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
@@ -19,6 +21,7 @@
     if (/Invalid login credentials/i.test(m)) return "Email or password is wrong.";
     if (/Email not confirmed/i.test(m)) return "Please confirm your email first (check your inbox), then log in.";
     if (/Failed to fetch|NetworkError|Load failed/i.test(m)) return "No internet connection. Please try again when you are online.";
+    if (/provider is not enabled|Unsupported provider/i.test(m)) return "Google sign-in isn't switched on yet. Please use email and password for now.";
     return m;
   }
   Cloud.friendly = friendly;
@@ -60,6 +63,23 @@
     Cloud.user = data.user;
     await loadProfile();
     return { needsConfirm: false };
+  };
+
+  Cloud.signInWithGoogle = async function () {
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: location.origin + location.pathname, queryParams: { prompt: "select_account" } },
+    });
+    if (error) throw new Error(friendly(error));
+    // the browser now leaves for Google and comes back signed in
+  };
+
+  // After a Google sign-in, the student enters the class join code once.
+  Cloud.joinClass = async function (code) {
+    const { data, error } = await sb.rpc("join_class", { code: code.trim() });
+    if (error) throw new Error(friendly(error));
+    if (!data) throw new Error("That join code is not correct. Ask your teacher or admin for the class code.");
+    await loadProfile();
   };
 
   Cloud.resetPassword = async function (email) {

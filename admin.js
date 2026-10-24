@@ -122,7 +122,7 @@
             const s = summarize(attempts.filter((a) => a.user_id === p.id));
             return `<tr class="click" data-sid="${p.id}"><td>${esc(p.full_name)}</td><td class="small">${esc(p.email)}</td>
               <td>${p.role === "admin" ? `<span class="pill warn">admin</span>` : "student"}</td>
-              <td>${p.active ? `<span class="pill good">active</span>` : `<span class="pill bad">disabled</span>`}</td>
+              <td>${!p.active ? `<span class="pill bad">disabled</span>` : p.joined === false ? `<span class="pill warn">needs code</span>` : `<span class="pill good">active</span>`}</td>
               <td>${s.tests}</td><td>${pill(s.avg)}</td><td class="small">${ago(p.last_seen)}</td></tr>`;
           }).join("") || `<tr><td colspan="7" class="muted">No matches.</td></tr>`}
         </table></div>
@@ -155,7 +155,9 @@
         <div class="row" style="margin-top:10px">
           <button class="btn secondary" id="toggleRole">${p.role === "admin" ? "Make student" : "Make admin"}</button>
           <button class="btn secondary" id="toggleActive">${p.active ? "Disable account" : "Re-enable account"}</button>
-        </div>`}
+          ${p.joined === false ? `<button class="btn" id="approve">Approve without code</button>` : ""}
+        </div>
+        ${p.joined === false ? `<p class="small muted">Signed in with Google but hasn't entered the class join code yet.</p>` : ""}`}
         <p class="small" id="msg"></p>
       </div>
       <div class="grid">
@@ -195,6 +197,9 @@
         const role = p.role === "admin" ? "student" : "admin";
         if (confirm(role === "admin" ? `Give ${p.full_name} full admin access to every student's data?` : `Remove admin access from ${p.full_name}?`))
           update({ role }, "Role updated.");
+      };
+      if ($("#approve", el)) $("#approve", el).onclick = () => {
+        if (confirm(`Let ${p.full_name} into the class without the join code?`)) update({ joined: true }, "Approved.");
       };
       $("#toggleActive", el).onclick = () => {
         if (confirm(p.active ? `Disable ${p.full_name}? They will be logged out and can't save progress until re-enabled. Their scores are kept.` : `Re-enable ${p.full_name}?`))

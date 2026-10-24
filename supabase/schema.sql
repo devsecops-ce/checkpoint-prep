@@ -20,6 +20,8 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now(),
   last_seen timestamptz
 );
+-- false until a Google sign-in enters the class join code (email sign-ups give the code up front)
+alter table public.profiles add column if not exists joined boolean not null default true;
 
 create table if not exists public.attempts (
   id bigint generated always as identity primary key,
@@ -47,31 +49,37 @@ create table if not exists public.revised (
 -- ---------- helpers ----------
 create or replace function public.is_admin() returns boolean
 language sql stable security definer set search_path = public as $$
-  select exists (select 1 from public.profiles where id = auth.uid() and role = 'admin' and active);
+  select exists (select 1 from public.profiles where id = auth.uid() and role = 'admin' and active and joined);
 $$;
 
 create or replace function public.is_active() returns boolean
 language sql stable security definer set search_path = public as $$
-  select exists (select 1 from public.profiles where id = auth.uid() and active);
+  select exists (select 1 from public.profiles where id = auth.uid() and active and joined);
 $$;
 
--- New sign-ups must supply the class join code. The very first account becomes the admin.
+-- Email sign-ups must supply the class join code. Google sign-ups can't pass one, so they get a
+-- locked profile (joined = false) and the app asks for the code before anything else.
+-- The very first account becomes the admin.
 create or replace function public.handle_new_user() returns trigger
 language plpgsql security definer set search_path = public as $$
 declare
   code text := coalesce(new.raw_user_meta_data ->> 'join_code', '');
   first_user boolean := not exists (select 1 from public.profiles);
+  code_ok boolean := upper(trim(code)) = upper((select join_code from public.settings where id = 1));
+  social boolean := coalesce(new.raw_app_meta_data ->> 'provider', 'email') <> 'email';
 begin
-  if not first_user and upper(trim(code)) <> upper((select join_code from public.settings where id = 1)) then
+  if not first_user and not code_ok and not social then
     raise exception 'Invalid join code';
   end if;
-  insert into public.profiles (id, email, full_name, grade, role)
+  insert into public.profiles (id, email, full_name, grade, role, joined)
   values (
     new.id,
     new.email,
-    coalesce(nullif(trim(new.raw_user_meta_data ->> 'full_name'), ''), split_part(new.email, '@', 1)),
+    coalesce(nullif(trim(new.raw_user_meta_data ->> 'full_name'), ''), nullif(trim(new.raw_user_meta_data ->> 'name'), ''),
+             split_part(new.email, '@', 1)),
     coalesce(nullif(trim(new.raw_user_meta_data ->> 'grade'), ''), 'Stage 8'),
-    case when first_user then 'admin' else 'student' end
+    case when first_user then 'admin' else 'student' end,
+    first_user or code_ok
   );
   return new;
 end;
@@ -82,12 +90,15 @@ create trigger on_auth_user_created after insert on auth.users
   for each row execute function public.handle_new_user();
 
 -- Students may only touch last_seen on their own profile; role/active/name changes are admin-only.
+-- Not security definer: current_user must stay the caller's role so join_class() (owned by postgres)
+-- can unlock a profile while a direct update from the app cannot.
 create or replace function public.guard_profile_update() returns trigger
-language plpgsql security definer set search_path = public as $$
+language plpgsql set search_path = public as $$
 begin
   if not public.is_admin() then
     if new.role <> old.role or new.active <> old.active or new.email is distinct from old.email
-       or new.full_name <> old.full_name or new.grade <> old.grade then
+       or new.full_name <> old.full_name or new.grade <> old.grade
+       or (new.joined <> old.joined and current_user <> 'postgres') then
       raise exception 'Only an admin can change these fields';
     end if;
   elsif old.id = auth.uid() and (new.role <> 'admin' or not new.active) then
@@ -98,6 +109,21 @@ end;
 $$;
 
 drop trigger if exists profiles_guard on public.profiles;
+
+create or replace function public.join_class(code text) returns boolean
+language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then return false; end if;
+  if upper(trim(coalesce(code, ''))) <> upper((select join_code from public.settings where id = 1)) then
+    return false;
+  end if;
+  update public.profiles set joined = true where id = auth.uid();
+  return true;
+end;
+$$;
+revoke all on function public.join_class(text) from public, anon;
+grant execute on function public.join_class(text) to authenticated;
+
 create trigger profiles_guard before update on public.profiles
   for each row execute function public.guard_profile_update();
 

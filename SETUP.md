@@ -32,6 +32,26 @@ After Part 1 it switches to **multi-user mode** automatically: logins, cloud syn
 7. As admin, go to **🛠 Admin → Settings** and set your **class join code**. The default is `CHECKPOINT8`.
    Give this code to your students. They use it to create their own accounts.
 
+### Optional: "Continue with Google" sign-in (free, about 10 minutes)
+Students sign in with one tap using their Google account. The first time, they enter the class join code once.
+1. Go to **https://console.cloud.google.com** → project menu at the top → **New project** → name it `Checkpoint Prep` → **Create**.
+2. Search for **Google Auth Platform** → **Get started**.
+   - App name: `Checkpoint Prep`. Support email: your Gmail.
+   - Audience: **External**. Contact email: your Gmail. Agree → **Create**.
+3. **Audience** → **Publish app** → **Confirm**, so any Google account can sign in.
+   Only basic name and email access is used, so Google doesn't need to review the app.
+4. **Clients** → **Create client** → Application type **Web application**, then fill in:
+   - **Authorized JavaScript origins:** `https://checkpoint-preparation.netlify.app`
+   - **Authorized redirect URIs:** `https://qzxqsnnfrlwfufejolcw.supabase.co/auth/v1/callback`
+   - **Create**, then copy the **Client ID** and **Client secret**.
+5. In Supabase: **Authentication → Sign In / Providers → Google** → switch **on** → paste the Client ID and Client secret → **Save**.
+6. In Supabase: **Authentication → URL Configuration → Redirect URLs** → **Add URL**:
+   `https://checkpoint-preparation.netlify.app/**` (and `https://devsecops-ce.github.io/checkpoint-prep/**` if you use that link too).
+7. In `config.js`, set `googleSignIn: true`, then push to GitHub. The **Continue with Google** button appears on the login screen.
+
+Admins see Google users who haven't entered the code yet as **needs code** in **Admin → Students**, and can approve them without the code.
+Google sign-in works on the website and on the home-screen app. It doesn't work inside the optional native iOS wrapper, because Google blocks embedded browsers; email login still works there.
+
 ### Get every test result by email (free, about 5 minutes)
 Once this is set up, completed tests are emailed to **parepalli.satheesh@gmail.com** every 10 minutes.
 Each email lists the student, test, score and topics to revise.

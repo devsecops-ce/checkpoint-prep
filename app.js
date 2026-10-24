@@ -576,6 +576,9 @@
         <div class="card auth">
           <h2>${mode === "login" ? "Welcome back 👋" : mode === "signup" ? "Create your account" : "Reset password"}</h2>
           <p class="muted small">${mode === "signup" ? "Ask your teacher or admin for the class join code." : "Log in to save your progress and see it on any device."}</p>
+          ${Cloud.googleEnabled && mode !== "reset" ? `
+            <button class="btn google-btn" id="googleBtn" type="button"><span class="g-logo">G</span> Continue with Google</button>
+            <div class="or-line"><span>or use email</span></div>` : ""}
           <form id="authForm">
             ${mode === "signup" ? `<label>Full name<input name="name" required autocomplete="name"></label>` : ""}
             <label>Email<input name="email" type="email" required autocomplete="email"></label>
@@ -589,6 +592,10 @@
           </div>
         </div>`;
       view.querySelectorAll("[data-mode]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); mode = a.dataset.mode; draw(); }));
+      if ($("#googleBtn")) $("#googleBtn").onclick = async () => {
+        $("#googleBtn").disabled = true;
+        try { await Cloud.signInWithGoogle(); } catch (err) { draw(err.message, true); }
+      };
       $("#authForm").onsubmit = async (e) => {
         e.preventDefault();
         const f = new FormData(e.target);
@@ -609,7 +616,34 @@
     draw(message, true);
   }
 
+  // A Google sign-in that hasn't entered the class join code yet.
+  function showJoin(message) {
+    $("#subjectTabs").innerHTML = "";
+    renderUserChip();
+    const view = $("#view");
+    view.innerHTML = `
+      <div class="card auth">
+        <h2>One last step 🎓</h2>
+        <p class="muted small">Hi ${esc(Cloud.profile.full_name)}! Enter your class join code to finish setting up your account. You only do this once.</p>
+        <form id="joinForm">
+          <label>Class join code<input name="code" required autocapitalize="characters" autocomplete="off"></label>
+          ${message ? `<p class="small" style="color:var(--bad)">${esc(message)}</p>` : ""}
+          <button class="btn" type="submit" style="width:100%">Join class</button>
+        </form>
+        <div class="row small" style="margin-top:12px"><a href="#" id="joinLogout">Use a different account</a></div>
+      </div>`;
+    $("#joinForm").onsubmit = async (e) => {
+      e.preventDefault();
+      const btn = e.target.querySelector("button");
+      btn.disabled = true; btn.textContent = "Please wait…";
+      try { await Cloud.joinClass(new FormData(e.target).get("code")); enterApp(); }
+      catch (err) { showJoin(err.message); }
+    };
+    $("#joinLogout").onclick = async (e) => { e.preventDefault(); await Cloud.signOut(); showAuth(); };
+  }
+
   async function enterApp() {
+    if (Cloud.profile && Cloud.profile.joined === false) return showJoin();
     const view = $("#view");
     view.innerHTML = `<div class="card muted">Loading your progress…</div>`;
     progress = load(); // cached copy for this user, shown if the server can't be reached

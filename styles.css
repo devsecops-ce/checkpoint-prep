@@ -212,3 +212,9 @@ ul.tips li { margin-bottom: 8px; }
   .ladder .arrow { transform: rotate(90deg); }
   .timeline { grid-template-columns: 1fr 1fr; row-gap: 34px; }
 }
+
+/* Google sign-in */
+.google-btn { width: 100%; background: #fff; color: #1f1f1f; border: 1px solid #dadce0; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.g-logo { font-weight: 800; font-size: 18px; background: conic-gradient(#ea4335 0 25%, #fbbc05 0 50%, #34a853 0 75%, #4285f4 0); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.or-line { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; margin: 16px 0; }
+.or-line::before, .or-line::after { content: ""; flex: 1; border-top: 1px solid var(--border); }
