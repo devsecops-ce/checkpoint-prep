@@ -272,7 +272,7 @@
       if (v && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) { $("#notifyMsg", el).style.color = "var(--bad)"; $("#notifyMsg", el).textContent = "That doesn't look like an email address."; return; }
       save({ notify_email: v || null }, $("#notifyMsg", el));
     };
-    $("#saveSchool", el).onclick =() => save({ school_name: $("#school", el).value.trim() || "Checkpoint Prep" }, null);
+    $("#saveSchool", el).onclick =() => save({ school_name: $("#school", el).value.trim() || "Checkpoint Preparation" }, null);
     $("#csv2", el).onclick = exportCsv;
   }
 

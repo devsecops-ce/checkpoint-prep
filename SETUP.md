@@ -1,4 +1,4 @@
-# Checkpoint Prep — Setup Guide
+# Checkpoint Preparation — Setup Guide
 
 Until you finish Part 1, the app works **offline on one device**, with no logins and no admin panel.
 After Part 1 it switches to **multi-user mode** automatically: logins, cloud sync, and an admin panel.
@@ -34,9 +34,9 @@ After Part 1 it switches to **multi-user mode** automatically: logins, cloud syn
 
 ### Optional: "Continue with Google" sign-in (free, about 10 minutes)
 Students sign in with one tap using their Google account. The first time, they enter the class join code once.
-1. Go to **https://console.cloud.google.com** → project menu at the top → **New project** → name it `Checkpoint Prep` → **Create**.
+1. Go to **https://console.cloud.google.com** → project menu at the top → **New project** → name it `Checkpoint Preparation` → **Create**.
 2. Search for **Google Auth Platform** → **Get started**.
-   - App name: `Checkpoint Prep`. Support email: your Gmail.
+   - App name: `Checkpoint Preparation`. Support email: your Gmail.
    - Audience: **External**. Contact email: your Gmail. Agree → **Create**.
 3. **Audience** → **Publish app** → **Confirm**, so any Google account can sign in.
    Only basic name and email access is used, so Google doesn't need to review the app.

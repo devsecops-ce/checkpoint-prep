@@ -1,4 +1,4 @@
-# Checkpoint Prep — Cambridge Lower Secondary Stage 8
+# Checkpoint Preparation — Cambridge Lower Secondary Stage 8
 
 A free revision app for Cambridge Lower Secondary Stage 8 students working towards the Checkpoint exams.
 It runs in any browser, installs on iPhone, iPad and Android (Add to Home Screen), and works offline.

@@ -97,14 +97,16 @@
       return;
     }
     mk("home", "🏠 Dashboard");
-    SUBJECTS.forEach((s) => mk(s.id, `${s.icon} ${esc(s.name)}`, s.color));
-    mk("news", "📰 Cambridge News", NEWS_COLOR);
+    memberSubjects().forEach((s) => mk(s.id, `${s.icon} ${esc(s.name)}`, s.color));
+    if (!Cloud.enabled) mk("news", "📰 Cambridge News", NEWS_COLOR);
     if (isAdmin()) mk("admin", "🛠 Admin", "#475569");
   }
   const isAdmin = () => Cloud.enabled && Cloud.profile && Cloud.profile.role === "admin";
   // Logged-out visitors can still use these tabs; everything else needs an account.
   const PUBLIC_TABS = ["mathsboost", "news"];
   const guest = () => Cloud.enabled && !Cloud.user;
+  // With accounts on, the public tabs live only on the login page.
+  const memberSubjects = () => (Cloud.enabled ? SUBJECTS.filter((s) => !PUBLIC_TABS.includes(s.id)) : SUBJECTS);
 
   function renderUserChip() {
     const box = $("#userBox");
@@ -137,7 +139,7 @@
         </div>
       </div>
       <div class="grid">`;
-    SUBJECTS.forEach((s) => {
+    memberSubjects().forEach((s) => {
       const st = subjectStats(s);
       const g = st.avg != null ? grade(st.avg) : null;
       html += `
@@ -565,6 +567,7 @@
 
   // ---------- main render ----------
   function render() {
+    if (Cloud.enabled && !guest() && (PUBLIC_TABS.includes(state.subject) || state.subject === "login")) state.subject = "home";
     renderTabs();
     renderUserChip();
     const view = $("#view");
@@ -576,8 +579,8 @@
       return pub ? renderSubject(view, pub) : renderAuth(view);
     }
     if (state.subject === "news") return renderNews(view);
-    if (state.subject === "admin" && isAdmin() && window.Admin) return window.Admin.render(view, SUBJECTS);
-    const s = SUBJECTS.find((x) => x.id === state.subject);
+    if (state.subject === "admin" && isAdmin() && window.Admin) return window.Admin.render(view, memberSubjects());
+    const s = memberSubjects().find((x) => x.id === state.subject);
     if (!s) renderHome(view); else renderSubject(view, s);
   }
 

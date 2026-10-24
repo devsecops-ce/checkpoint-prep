@@ -1,4 +1,4 @@
--- Checkpoint Prep — Supabase schema
+-- Checkpoint Preparation — Supabase schema
 -- Run once in Supabase Dashboard → SQL Editor → New query → paste → Run.
 -- Safe to re-run: objects are created with IF NOT EXISTS / OR REPLACE.
 
@@ -6,7 +6,7 @@
 create table if not exists public.settings (
   id int primary key default 1 check (id = 1),
   join_code text not null default 'CHECKPOINT8',
-  school_name text not null default 'Checkpoint Prep'
+  school_name text not null default 'Checkpoint Preparation'
 );
 insert into public.settings (id) values (1) on conflict (id) do nothing;
 
@@ -194,8 +194,11 @@ create extension if not exists pg_net;
 create extension if not exists pg_cron;
 
 alter table public.settings add column if not exists notify_email text default 'parepalli.satheesh@gmail.com';
-alter table public.settings add column if not exists notify_from text not null default 'Checkpoint Prep <onboarding@resend.dev>';
+alter table public.settings add column if not exists notify_from text not null default 'Checkpoint Preparation <onboarding@resend.dev>';
 alter table public.attempts add column if not exists emailed_at timestamptz;
+-- app was renamed from "Checkpoint Prep"
+update public.settings set school_name = 'Checkpoint Preparation' where school_name = 'Checkpoint Prep';
+update public.settings set notify_from = 'Checkpoint Preparation <onboarding@resend.dev>' where notify_from = 'Checkpoint Prep <onboarding@resend.dev>';
 
 create or replace function public.html_esc(t text) returns text
 language sql immutable as $$
