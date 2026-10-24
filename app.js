@@ -163,7 +163,7 @@
         ${Cloud.enabled ? "" : `<div class="row"><span class="spacer"></span><button class="btn secondary" id="resetAll">Reset all progress</button></div>`}
       </div>
       ${Cloud.enabled && Cloud.profile ? `<div class="card"><h3>My account</h3>
-        <p class="small muted">${esc(Cloud.profile.full_name)} · ${esc(Cloud.profile.email || "")}</p>
+        <p class="small muted">${esc(Cloud.profile.full_name)} · ${Cloud.profile.username ? "username: " + esc(Cloud.profile.username) : esc(Cloud.profile.email || "")}</p>
         <div class="row"><button class="btn secondary" id="logout2">Log out</button><span class="spacer"></span>
           <button class="btn secondary" id="deleteAcct" style="color:var(--bad)">Delete my account</button></div>
         <p class="small" id="acctMsg"></p></div>` : ""}`;
@@ -677,13 +677,15 @@
       view.innerHTML = `
         <div class="card auth">
           <h2>${mode === "login" ? "Welcome back 👋" : mode === "signup" ? "Create your account" : "Reset password"}</h2>
-          <p class="muted small">${mode === "signup" ? "Ask your teacher or admin for the class join code." : "Log in to save your progress and see it on any device."}</p>
+          <p class="muted small">${mode === "signup" ? "Ask your teacher or admin for the class join code." : mode === "reset" ? "For accounts with an email address. If your teacher gave you a username, ask your teacher to reset your password." : "Use the username and password from your teacher, or your email if you signed up yourself."}</p>
           ${Cloud.googleEnabled && mode !== "reset" ? `
             <button class="btn google-btn" id="googleBtn" type="button"><span class="g-logo">G</span> Continue with Google</button>
             <div class="or-line"><span>or use email</span></div>` : ""}
           <form id="authForm">
             ${mode === "signup" ? `<label>Full name<input name="name" required autocomplete="name"></label>` : ""}
-            <label>Email<input name="email" type="email" required autocomplete="email"></label>
+            ${mode === "login"
+              ? `<label>Username or email<input name="email" required autocomplete="username" autocapitalize="none" spellcheck="false"></label>`
+              : `<label>Email<input name="email" type="email" required autocomplete="email"></label>`}
             ${mode !== "reset" ? `<label>Password<input name="password" type="password" required minlength="6" autocomplete="${mode === "signup" ? "new-password" : "current-password"}"></label>` : ""}
             ${mode === "signup" ? `<label>Class join code <span class="muted small">(leave empty only when creating the very first admin account)</span><input name="code" autocapitalize="characters"></label>` : ""}
             ${msg ? `<p class="small" style="color:var(${isErr ? "--bad" : "--good"})">${esc(msg)}</p>` : ""}

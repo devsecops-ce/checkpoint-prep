@@ -66,6 +66,17 @@ Each email lists the student, test, score and topics to revise.
    You can change the address under **🛠 Admin → Settings → Email test results to**.
    To send to a different address, sign up to Resend with that address, or verify your own domain in Resend.
 
+### Adding students (usernames and passwords)
+You can create accounts yourself and hand out the login details, so students don't need an email address.
+1. Log in as admin → **🛠 Admin → Students → ➕ Add students**.
+2. **One student:** type the name. A username and password are suggested; change them if you like → **Create account**.
+   **Whole class:** paste one name per line → **Create all accounts**.
+3. A **login details** card appears. Use **📋 Copy all** to paste into WhatsApp or email, or **🖨 Print login slips**.
+   Passwords aren't shown again later, so save or print them now.
+4. Students log in at the website with **Username** and **Password**.
+5. **Forgot password?** Open the student in **Admin → Students** → **🔑 Reset password**, and give them the new one.
+   **Leaving the class?** Use **🗑 Delete account**, or **Disable account** to keep their results.
+
 ### What the admin panel does
 | Tab | What you can do |
 |---|---|

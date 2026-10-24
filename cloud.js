@@ -18,7 +18,7 @@
   function friendly(error) {
     const m = (error && error.message) || String(error);
     if (/Database error saving new user|Invalid join code/i.test(m)) return "That join code is not correct. Ask your teacher or admin for the class code.";
-    if (/Invalid login credentials/i.test(m)) return "Email or password is wrong.";
+    if (/Invalid login credentials/i.test(m)) return "Username/email or password is wrong.";
     if (/Email not confirmed/i.test(m)) return "Please confirm your email first (check your inbox), then log in.";
     if (/Failed to fetch|NetworkError|Load failed/i.test(m)) return "No internet connection. Please try again when you are online.";
     if (/provider is not enabled|Unsupported provider/i.test(m)) return "Google sign-in isn't switched on yet. Please use email and password for now.";
@@ -44,8 +44,14 @@
     return true;
   };
 
-  Cloud.signIn = async function (email, password) {
-    const { data, error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+  // Admin-created students log in with a username, stored as <username>@students.checkpoint.local
+  // (see student_email() in supabase/schema.sql).
+  const STUDENT_DOMAIN = "students.checkpoint.local";
+  Cloud.loginName = (p) => (p && p.username) || (p && p.email) || "";
+  Cloud.signIn = async function (login, password) {
+    const id = login.trim().toLowerCase();
+    const email = id.includes("@") ? id : `${id}@${STUDENT_DOMAIN}`;
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw new Error(friendly(error));
     Cloud.user = data.user;
     await loadProfile();
@@ -86,6 +92,17 @@
     const { error } = await sb.auth.resetPasswordForEmail(email.trim());
     if (error) throw new Error(friendly(error));
   };
+
+  // ---------- admin: student accounts ----------
+  const rpc = async (fn, args) => {
+    const { data, error } = await sb.rpc(fn, args);
+    if (error) throw new Error(friendly(error));
+    return data;
+  };
+  Cloud.adminCreateStudent = (username, password, fullName) =>
+    rpc("admin_create_student", { p_username: username, p_password: password, p_full_name: fullName });
+  Cloud.adminSetPassword = (userId, password) => rpc("admin_set_password", { p_user: userId, p_password: password });
+  Cloud.adminDeleteStudent = (userId) => rpc("admin_delete_student", { p_user: userId });
 
   Cloud.deleteAccount = async function () {
     const { error } = await sb.rpc("delete_my_account");

@@ -1,7 +1,7 @@
 // Offline support for the installed (Add to Home Screen) app.
 // App files are served from cache and refreshed in the background; Supabase calls always go to the network.
 // Bump VERSION after changing any file so installed apps pick up the update.
-const VERSION = "cp8-v9";
+const VERSION = "cp8-v10";
 const FILES = [
   "./", "index.html", "styles.css", "app.js", "cloud.js", "admin.js", "config.js", "manifest.webmanifest",
   "vendor/supabase.js",

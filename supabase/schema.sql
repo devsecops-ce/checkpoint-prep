@@ -242,7 +242,7 @@ begin
       '<td style="padding:8px;border-bottom:1px solid #eee;font-size:16px"><b style="color:%s">%s/%s</b><br><span style="font-size:12px">%s%%</span></td>'
       '<td style="padding:8px;border-bottom:1px solid #eee;font-size:12px">%s</td>'
       '<td style="padding:8px;border-bottom:1px solid #eee;font-size:12px;color:#666">%s</td></tr>',
-      html_esc(p.full_name), html_esc(p.email),
+      html_esc(p.full_name), html_esc(coalesce('username: ' || p.username, p.email)),
       html_esc(subject_name(a.subject_id)), html_esc(coalesce(a.test_title, a.test_id)),
       case when a.score * 100 >= a.max * 70 then '#15803d' when a.score * 100 >= a.max * 50 then '#a16207' else '#b91c1c' end,
       a.score, a.max, round(a.score * 100.0 / a.max),
@@ -286,3 +286,78 @@ $$;
 revoke all on function public.send_result_emails() from public, anon, authenticated;
 
 select cron.schedule('send-result-emails', '*/10 * * * *', 'select public.send_result_emails()');
+
+-- ---------- admin-created student accounts (username + password, no email needed) ----------
+-- Supabase logins need an email, so a username maps to <username>@students.checkpoint.local.
+-- These addresses are never emailed: accounts are created already confirmed, and admins reset passwords.
+alter table public.profiles add column if not exists username text unique;
+
+create or replace function public.student_email(p_username text) returns text
+language sql immutable as $$ select lower(trim(p_username)) || '@students.checkpoint.local' $$;
+
+create or replace function public.admin_create_student(p_username text, p_password text, p_full_name text)
+returns uuid
+language plpgsql security definer set search_path = public, auth, extensions as $$
+declare
+  uname text := lower(trim(p_username));
+  uid uuid := gen_random_uuid();
+  mail text := public.student_email(p_username);
+begin
+  if not public.is_admin() then raise exception 'Only an admin can create accounts'; end if;
+  if uname !~ '^[a-z0-9][a-z0-9._-]{2,29}$' then
+    raise exception 'Username must be 3-30 characters: letters, numbers, dot, dash or underscore';
+  end if;
+  if length(coalesce(p_password, '')) < 6 then raise exception 'Password must be at least 6 characters'; end if;
+  if coalesce(trim(p_full_name), '') = '' then raise exception 'Please enter the student''s name'; end if;
+  if exists (select 1 from auth.users where email = mail) or exists (select 1 from public.profiles where username = uname) then
+    raise exception 'The username "%" is already taken', uname;
+  end if;
+
+  insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+      raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+      confirmation_token, recovery_token, email_change_token_new, email_change)
+  values ('00000000-0000-0000-0000-000000000000', uid, 'authenticated', 'authenticated', mail,
+      crypt(p_password, gen_salt('bf')), now(),
+      '{"provider":"email","providers":["email"]}'::jsonb,
+      jsonb_build_object('full_name', trim(p_full_name), 'join_code', (select join_code from public.settings where id = 1)),
+      now(), now(), '', '', '', '');
+  insert into auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
+  values (gen_random_uuid(), uid, uid::text, 'email',
+      jsonb_build_object('sub', uid::text, 'email', mail, 'email_verified', true), now(), now(), now());
+
+  -- the sign-up trigger has created the profile; record the username
+  update public.profiles set username = uname where id = uid;
+  return uid;
+end;
+$$;
+
+create or replace function public.admin_set_password(p_user uuid, p_password text) returns void
+language plpgsql security definer set search_path = public, auth, extensions as $$
+begin
+  if not public.is_admin() then raise exception 'Only an admin can reset passwords'; end if;
+  if length(coalesce(p_password, '')) < 6 then raise exception 'Password must be at least 6 characters'; end if;
+  if exists (select 1 from public.profiles where id = p_user and role = 'admin') and p_user <> auth.uid() then
+    raise exception 'Another admin must reset their own password';
+  end if;
+  update auth.users set encrypted_password = crypt(p_password, gen_salt('bf')), updated_at = now() where id = p_user;
+  if not found then raise exception 'Account not found'; end if;
+end;
+$$;
+
+create or replace function public.admin_delete_student(p_user uuid) returns void
+language plpgsql security definer set search_path = public, auth as $$
+begin
+  if not public.is_admin() then raise exception 'Only an admin can delete accounts'; end if;
+  if exists (select 1 from public.profiles where id = p_user and role = 'admin') then
+    raise exception 'Admin accounts cannot be deleted here. Make them a student first.';
+  end if;
+  delete from auth.users where id = p_user; -- cascades to profile, attempts and revised topics
+end;
+$$;
+
+revoke all on function public.admin_create_student(text, text, text) from public, anon;
+revoke all on function public.admin_set_password(uuid, text) from public, anon;
+revoke all on function public.admin_delete_student(uuid) from public, anon;
+grant execute on function public.admin_create_student(text, text, text) to authenticated;
+grant execute on function public.admin_set_password(uuid, text) to authenticated;
+grant execute on function public.admin_delete_student(uuid) to authenticated;

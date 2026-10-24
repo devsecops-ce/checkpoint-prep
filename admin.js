@@ -107,20 +107,148 @@
     bindStudentLinks(el, view);
   }
 
+  // ---------- creating student accounts ----------
+  const WORDS = ["tiger", "maple", "river", "rocket", "mango", "planet", "comet", "lotus", "falcon", "pixel", "coral", "cedar",
+    "orbit", "panda", "amber", "storm", "lemon", "zebra", "piano", "delta", "sunny", "ocean", "eagle", "tulip"];
+  const rand = (n) => crypto.getRandomValues(new Uint32Array(1))[0] % n;
+  // Easy to read out and type, e.g. "comet4827".
+  const newPassword = () => WORDS[rand(WORDS.length)] + String(1000 + rand(9000));
+  function suggestUsername(name, taken) {
+    const parts = name.toLowerCase().normalize("NFKD").replace(/[^a-z\s]/g, "").trim().split(/\s+/).filter(Boolean);
+    let base = parts.length > 1 ? `${parts[0]}.${parts[parts.length - 1]}` : parts[0] || "student";
+    base = base.slice(0, 24);
+    if (base.length < 3) base += "student";
+    let u = base, i = 2;
+    while (taken.has(u)) u = `${base}${i++}`;
+    taken.add(u);
+    return u;
+  }
+  const takenUsernames = () => new Set(st.data.profiles.map((p) => p.username).filter(Boolean));
+
+  function credentialsCard(rows) {
+    const ok = rows.filter((r) => !r.error);
+    const text = ok.map((r) => `${r.name}\n  Username: ${r.username}\n  Password: ${r.password}`).join("\n\n");
+    return `<div class="card creds">
+      <h3>🔑 Login details to give your students</h3>
+      <p class="small muted">Website: <b>${esc(location.origin + location.pathname)}</b>. Save or print this now. For safety, passwords are not shown again (you can always reset one).</p>
+      <div class="table-wrap"><table><tr><th>Student</th><th>Username</th><th>Password</th><th></th></tr>
+        ${rows.map((r) => `<tr><td>${esc(r.name)}</td><td><code>${esc(r.username)}</code></td><td>${r.error ? "" : `<code>${esc(r.password)}</code>`}</td>
+          <td class="small">${r.error ? `<span style="color:var(--bad)">${esc(r.error)}</span>` : "✅ created"}</td></tr>`).join("")}
+      </table></div>
+      ${ok.length ? `<div class="row" style="margin-top:10px"><button class="btn" id="copyCreds">📋 Copy all</button><button class="btn secondary" id="printCreds">🖨 Print login slips</button></div>` : ""}
+      <textarea id="credsText" hidden>${esc(text)}</textarea>
+    </div>`;
+  }
+
+  function bindCredentials(box, rows) {
+    const copy = $("#copyCreds", box);
+    if (copy) copy.onclick = async () => {
+      const t = $("#credsText", box).value;
+      try { await navigator.clipboard.writeText(t); copy.textContent = "✅ Copied"; }
+      catch (e) { const ta = $("#credsText", box); ta.hidden = false; ta.select(); document.execCommand("copy"); ta.hidden = true; copy.textContent = "✅ Copied"; }
+    };
+    const print = $("#printCreds", box);
+    if (print) print.onclick = () => {
+      const site = location.origin + location.pathname;
+      const w = window.open("", "_blank");
+      w.document.write(`<!doctype html><meta charset="utf-8"><title>Login slips</title>
+        <style>body{font-family:Arial,sans-serif;margin:20px}.slip{border:1px dashed #999;padding:14px 18px;margin:0 0 12px;break-inside:avoid;border-radius:8px}
+        h3{margin:0 0 6px}code{font-size:18px;font-weight:bold}p{margin:4px 0}</style>
+        ${rows.filter((r) => !r.error).map((r) => `<div class="slip"><h3>Checkpoint Preparation: ${esc(r.name)}</h3>
+          <p>Website: ${esc(site)}</p><p>Username: <code>${esc(r.username)}</code></p><p>Password: <code>${esc(r.password)}</code></p></div>`).join("")}
+        <script>window.onload=()=>window.print()<\/script>`);
+      w.document.close();
+    };
+  }
+
+  function addStudentsCard(box, view) {
+    const mode = st.addMode || "one";
+    box.innerHTML = `<div class="card">
+      <div class="row"><h3 style="margin:0">➕ Add students</h3><span class="spacer"></span>
+        <button class="chip ${mode === "one" ? "on" : ""}" data-am="one">One student</button>
+        <button class="chip ${mode === "many" ? "on" : ""}" data-am="many">Whole class</button></div>
+      ${mode === "one" ? `
+        <form id="addOne" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));margin-top:12px">
+          <label class="small">Student's full name<input name="name" required placeholder="Riya Kumar"></label>
+          <label class="small">Username<input name="username" required autocapitalize="none" spellcheck="false" placeholder="riya.kumar"></label>
+          <label class="small">Password<input name="password" required minlength="6" value="${newPassword()}"></label>
+          <div style="align-self:end"><button class="btn" type="submit">Create account</button></div>
+        </form>` : `
+        <form id="addMany" style="margin-top:12px">
+          <label class="small">Paste student names, one per line<textarea name="names" rows="7" placeholder="Riya Kumar&#10;Arjun Reddy&#10;Sara Thomas" style="width:100%;margin-top:4px"></textarea></label>
+          <p class="small muted">A username and password is made for each name. You can print them as login slips afterwards.</p>
+          <button class="btn" type="submit">Create all accounts</button>
+        </form>`}
+      <p class="small" id="addMsg"></p>
+    </div><div id="credsBox"></div>`;
+    box.querySelectorAll("[data-am]").forEach((b) => (b.onclick = () => { st.addMode = b.dataset.am; addStudentsCard(box, view); }));
+
+    const msg = $("#addMsg", box);
+    // The form is redrawn after creating accounts, so look the credentials box up afresh.
+    const finish = async (rows) => {
+      const credsBox = $("#credsBox", box);
+      credsBox.innerHTML = credentialsCard(rows);
+      bindCredentials(credsBox, rows);
+      try { await fetchAll(); renderStudentList($("#listBox", view.querySelector("#adm")), view); } catch (e) { /* list refreshes on next visit */ }
+    };
+
+    const one = $("#addOne", box);
+    if (one) {
+      one.name.oninput = () => { if (!one.username.dataset.touched) one.username.value = suggestUsername(one.name.value, new Set(takenUsernames())); };
+      one.username.oninput = () => { one.username.dataset.touched = "1"; };
+      one.onsubmit = async (e) => {
+        e.preventDefault();
+        const row = { name: one.name.value.trim(), username: one.username.value.trim().toLowerCase(), password: one.password.value };
+        const btn = one.querySelector("button"); btn.disabled = true; msg.textContent = "";
+        try { await window.Cloud.adminCreateStudent(row.username, row.password, row.name); }
+        catch (err) { btn.disabled = false; msg.style.color = "var(--bad)"; msg.textContent = err.message; return; }
+        addStudentsCard(box, view);
+        finish([row]);
+      };
+    }
+
+    const many = $("#addMany", box);
+    if (many) many.onsubmit = async (e) => {
+      e.preventDefault();
+      const names = [...new Set(many.names.value.split("\n").map((n) => n.trim()).filter(Boolean))];
+      if (!names.length) { msg.style.color = "var(--bad)"; msg.textContent = "Add at least one name."; return; }
+      if (names.length > 100) { msg.style.color = "var(--bad)"; msg.textContent = "Please add at most 100 names at a time."; return; }
+      const btn = many.querySelector("button"); btn.disabled = true;
+      const taken = takenUsernames(), rows = [];
+      for (const [i, name] of names.entries()) {
+        msg.style.color = "var(--muted)"; msg.textContent = `Creating ${i + 1} of ${names.length}…`;
+        const row = { name, username: suggestUsername(name, taken), password: newPassword() };
+        try { await window.Cloud.adminCreateStudent(row.username, row.password, row.name); }
+        catch (err) { row.error = err.message; }
+        rows.push(row);
+      }
+      msg.textContent = "";
+      addStudentsCard(box, view);
+      finish(rows);
+    };
+  }
+
   function students(el, view) {
+    el.innerHTML = `<div id="addBox"></div><div id="listBox"></div>`;
+    addStudentsCard($("#addBox", el), view);
+    renderStudentList($("#listBox", el), view);
+  }
+
+  function renderStudentList(el, view) {
+    if (!el) return;
     const { profiles, attempts } = st.data;
     const q = st.query.toLowerCase();
-    const list = profiles.filter((p) => !q || (p.full_name + " " + (p.email || "")).toLowerCase().includes(q));
+    const list = profiles.filter((p) => !q || (p.full_name + " " + (p.email || "") + " " + (p.username || "")).toLowerCase().includes(q));
     el.innerHTML = `
       <div class="card">
-        <div class="row"><input id="search" class="inline" placeholder="Search name or email" value="${esc(st.query)}" style="flex:1;min-width:200px">
+        <div class="row"><input id="search" class="inline" placeholder="Search name, username or email" value="${esc(st.query)}" style="flex:1;min-width:200px">
           <button class="btn secondary" id="csv">Export CSV</button></div>
-        <p class="small muted">New students sign up in the app with the class join code (see Settings). Click a row to see details and manage the account.</p>
+        <p class="small muted">Click a student to see their results, reset their password or manage the account.</p>
         <div class="table-wrap"><table>
-          <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Tests</th><th>Average</th><th>Last seen</th></tr>
+          <tr><th>Name</th><th>Login</th><th>Role</th><th>Status</th><th>Tests</th><th>Average</th><th>Last seen</th></tr>
           ${list.map((p) => {
             const s = summarize(attempts.filter((a) => a.user_id === p.id));
-            return `<tr class="click" data-sid="${p.id}"><td>${esc(p.full_name)}</td><td class="small">${esc(p.email)}</td>
+            return `<tr class="click" data-sid="${p.id}"><td>${esc(p.full_name)}</td><td class="small">${p.username ? `<code>${esc(p.username)}</code>` : esc(p.email)}</td>
               <td>${p.role === "admin" ? `<span class="pill warn">admin</span>` : "student"}</td>
               <td>${!p.active ? `<span class="pill bad">disabled</span>` : p.joined === false ? `<span class="pill warn">needs code</span>` : `<span class="pill good">active</span>`}</td>
               <td>${s.tests}</td><td>${pill(s.avg)}</td><td class="small">${ago(p.last_seen)}</td></tr>`;
@@ -128,7 +256,7 @@
         </table></div>
       </div>`;
     const search = $("#search", el);
-    search.oninput = () => { st.query = search.value; students(el, view); const s2 = $("#search", el); s2.focus(); s2.setSelectionRange(s2.value.length, s2.value.length); };
+    search.oninput = () => { st.query = search.value; renderStudentList(el, view); const s2 = $("#search", el); s2.focus(); s2.setSelectionRange(s2.value.length, s2.value.length); };
     $("#csv", el).onclick = exportCsv;
     bindStudentLinks(el, view);
   }
@@ -145,7 +273,7 @@
       <div class="card" style="margin-top:12px">
         <div class="row"><h2 style="margin:0">${esc(p.full_name)}</h2>${p.role === "admin" ? `<span class="pill warn">admin</span>` : ""}
           ${p.active ? `<span class="pill good">active</span>` : `<span class="pill bad">disabled</span>`}</div>
-        <p class="small muted">${esc(p.email)} · joined ${fmtDate(p.created_at)} · last seen ${ago(p.last_seen)}</p>
+        <p class="small muted">${p.username ? `username: <code>${esc(p.username)}</code>` : esc(p.email)} · joined ${fmtDate(p.created_at)} · last seen ${ago(p.last_seen)}</p>
         <div class="row">
           <label class="small">Name <input class="inline" id="fName" value="${esc(p.full_name)}"></label>
           <label class="small">Grade <input class="inline" id="fGrade" value="${esc(p.grade)}" style="width:110px"></label>
@@ -156,7 +284,10 @@
           <button class="btn secondary" id="toggleRole">${p.role === "admin" ? "Make student" : "Make admin"}</button>
           <button class="btn secondary" id="toggleActive">${p.active ? "Disable account" : "Re-enable account"}</button>
           ${p.joined === false ? `<button class="btn" id="approve">Approve without code</button>` : ""}
+          <button class="btn secondary" id="resetPw">🔑 Reset password</button>
+          ${p.role !== "admin" ? `<button class="btn secondary" id="delStudent" style="color:var(--bad)">🗑 Delete account</button>` : ""}
         </div>
+        <div id="pwBox"></div>
         ${p.joined === false ? `<p class="small muted">Signed in with Google but hasn't entered the class join code yet.</p>` : ""}`}
         <p class="small" id="msg"></p>
       </div>
@@ -197,6 +328,24 @@
         const role = p.role === "admin" ? "student" : "admin";
         if (confirm(role === "admin" ? `Give ${p.full_name} full admin access to every student's data?` : `Remove admin access from ${p.full_name}?`))
           update({ role }, "Role updated.");
+      };
+      $("#resetPw", el).onclick = async () => {
+        const pw = newPassword();
+        if (!confirm(`Set a new password for ${p.full_name}? Their old password will stop working.`)) return;
+        try { await window.Cloud.adminSetPassword(p.id, pw); }
+        catch (err) { msg.style.color = "var(--bad)"; msg.textContent = err.message; return; }
+        const box = $("#pwBox", el);
+        const rows = [{ name: p.full_name, username: p.username || p.email, password: pw }];
+        box.innerHTML = credentialsCard(rows);
+        bindCredentials(box, rows);
+      };
+      if ($("#delStudent", el)) $("#delStudent", el).onclick = async () => {
+        if (!confirm(`Permanently delete ${p.full_name}'s account and all their scores? This cannot be undone.`)) return;
+        try { await window.Cloud.adminDeleteStudent(p.id); }
+        catch (err) { msg.style.color = "var(--bad)"; msg.textContent = err.message; return; }
+        st.data.profiles = st.data.profiles.filter((x) => x.id !== p.id);
+        st.data.attempts = st.data.attempts.filter((a) => a.user_id !== p.id);
+        st.student = null; render(view, st.subjects);
       };
       if ($("#approve", el)) $("#approve", el).onclick = () => {
         if (confirm(`Let ${p.full_name} into the class without the join code?`)) update({ joined: true }, "Approved.");
@@ -280,10 +429,10 @@
     const { profiles, attempts } = st.data;
     const byId = Object.fromEntries(profiles.map((p) => [p.id, p]));
     const cell = (v) => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`;
-    const rows = [["Date", "Student", "Email", "Subject", "Test", "Type", "Score", "Max", "Percent"]];
+    const rows = [["Date", "Student", "Login", "Subject", "Test", "Type", "Score", "Max", "Percent"]];
     attempts.forEach((a) => {
       const p = byId[a.user_id] || {};
-      rows.push([new Date(a.created_at).toISOString().slice(0, 16).replace("T", " "), p.full_name, p.email, subjectName(a.subject_id), a.test_title || a.test_id, a.kind, a.score, a.max, pct(a.score, a.max)]);
+      rows.push([new Date(a.created_at).toISOString().slice(0, 16).replace("T", " "), p.full_name, p.username || p.email, subjectName(a.subject_id), a.test_title || a.test_id, a.kind, a.score, a.max, pct(a.score, a.max)]);
     });
     const blob = new Blob([rows.map((r) => r.map(cell).join(",")).join("\n")], { type: "text/csv" });
     const a = document.createElement("a");
