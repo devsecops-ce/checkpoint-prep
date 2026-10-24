@@ -35,6 +35,21 @@
     render();
     window.scrollTo(0, 0);
   }
+  // Invite links look like #invite?code=ABC&name=Riya&email=… and open the sign-up form pre-filled.
+  // Kept in sessionStorage so a Google sign-in (which leaves the page) can still use the code.
+  function readInvite() {
+    const m = location.hash.match(/^#invite\?(.*)$/);
+    if (m) {
+      const q = new URLSearchParams(m[1]);
+      const inv = { code: q.get("code") || "", name: q.get("name") || "", email: q.get("email") || "" };
+      try { sessionStorage.setItem("cp8.invite", JSON.stringify(inv)); } catch (e) {}
+      history.replaceState(null, "", location.pathname + location.search);
+    }
+    try { return JSON.parse(sessionStorage.getItem("cp8.invite")) || null; } catch (e) { return null; }
+  }
+  const invite = readInvite();
+  const clearInvite = () => { try { sessionStorage.removeItem("cp8.invite"); } catch (e) {} };
+
   function fromHash() {
     const [s, sec] = location.hash.replace(/^#\/?/, "").split("/");
     if (s && (SUBJECTS.some((x) => x.id === s) || s === "news" || (s === "admin" && isAdmin()))) { state.subject = s; state.section = sec || "overview"; }
@@ -672,10 +687,11 @@
   }
 
   function renderAuth(view) {
-    let mode = "login";
+    let mode = invite ? "signup" : "login";
     const draw = (msg, isErr) => {
       view.innerHTML = `
         <div class="card auth">
+          ${invite && mode === "signup" ? `<div class="invite-banner">🎉 You've been invited! Choose a password to finish creating your account.</div>` : ""}
           <h2>${mode === "login" ? "Welcome back 👋" : mode === "signup" ? "Create your account" : "Reset password"}</h2>
           <p class="muted small">${mode === "signup" ? "Ask your teacher or admin for the class join code." : mode === "reset" ? "For accounts with an email address. If your teacher gave you a username, ask your teacher to reset your password." : "Use the username and password from your teacher, or your email if you signed up yourself."}</p>
           ${Cloud.googleEnabled && mode !== "reset" ? `
@@ -696,6 +712,12 @@
           </div>
         </div>`;
       view.querySelectorAll("[data-mode]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); mode = a.dataset.mode; draw(); }));
+      const form = $("#authForm");
+      if (invite && mode === "signup") {
+        if (invite.name && form.name) form.name.value = invite.name;
+        if (invite.email) form.email.value = invite.email;
+        if (invite.code && form.code) form.code.value = invite.code;
+      }
       if ($("#googleBtn")) $("#googleBtn").onclick = async () => {
         $("#googleBtn").disabled = true;
         try { await Cloud.signInWithGoogle(); } catch (err) { draw(err.message, true); }
@@ -731,7 +753,7 @@
         <h2>One last step 🎓</h2>
         <p class="muted small">Hi ${esc(Cloud.profile.full_name)}! Enter your class join code to finish setting up your account. You only do this once.</p>
         <form id="joinForm">
-          <label>Class join code<input name="code" required autocapitalize="characters" autocomplete="off"></label>
+          <label>Class join code<input name="code" required autocapitalize="characters" autocomplete="off" value="${esc((invite && invite.code) || "")}"></label>
           ${message ? `<p class="small" style="color:var(--bad)">${esc(message)}</p>` : ""}
           <button class="btn" type="submit" style="width:100%">Join class</button>
         </form>
@@ -749,6 +771,7 @@
 
   async function enterApp() {
     if (Cloud.profile && Cloud.profile.joined === false) return showJoin();
+    clearInvite();
     const view = $("#view");
     view.innerHTML = `<div class="card muted">Loading your progress…</div>`;
     progress = load(); // cached copy for this user, shown if the server can't be reached

@@ -66,14 +66,14 @@
       view.innerHTML = `<div class="card muted">Loading class data…</div>`;
       try { await fetchAll(); } catch (e) { view.innerHTML = `<div class="card">Could not load data: ${esc(window.Cloud.friendly(e))}</div>`; return; }
     }
-    const tabs = [["overview", "Overview"], ["students", "Students"], ["subjects", "Subjects"], ["settings", "Settings"]];
+    const tabs = [["overview", "Overview"], ["students", "Students"], ["invite", "✉️ Invite"], ["subjects", "Subjects"], ["settings", "Settings"]];
     view.innerHTML = `<div class="subtabs">${tabs.map(([k, l]) => `<button class="subtab ${st.tab === k ? "active" : ""}" data-tab="${k}">${l}</button>`).join("")}
       <span class="spacer"></span><button class="ghost small" id="refresh" style="margin-bottom:6px">↻ Refresh</button></div><div id="adm"></div>`;
     view.querySelectorAll("[data-tab]").forEach((b) => (b.onclick = () => { st.tab = b.dataset.tab; st.student = null; render(view, subjects); }));
     $("#refresh", view).onclick = () => { st.data = null; render(view, subjects); };
     const el = $("#adm", view);
     if (st.student) return studentDetail(el, view);
-    ({ overview, students, subjectsView, settings }[st.tab === "subjects" ? "subjectsView" : st.tab])(el, view);
+    ({ overview, students, invite, subjectsView, settings }[st.tab === "subjects" ? "subjectsView" : st.tab])(el, view);
   }
 
   function overview(el, view) {
@@ -225,6 +225,102 @@
       msg.textContent = "";
       addStudentsCard(box, view);
       finish(rows);
+    };
+  }
+
+  // ---------- invitations ----------
+  // An invite is a link that opens the sign-up form with the class join code (and optionally name/email) filled in.
+  // Sending goes through the admin's own WhatsApp or email app, so no email service is needed.
+  const appUrl = () => location.origin + location.pathname.replace(/index\.html$/, "");
+  function inviteLink(extra) {
+    const q = new URLSearchParams({ code: st.data.settings.join_code, ...extra });
+    return `${appUrl()}#invite?${q.toString()}`;
+  }
+  const inviteMessage = (link, name) =>
+    `Hi${name ? " " + name : ""}! You're invited to join ${st.data.settings.school_name} for Cambridge Lower Secondary Stage 8 revision.\n\n` +
+    `Open this link to create your account:\n${link}\n\nClass join code: ${st.data.settings.join_code}`;
+
+  function shareButtons(link, msg, email) {
+    const subject = encodeURIComponent(`Invitation: ${st.data.settings.school_name}`);
+    return `<div class="row" style="margin-top:10px">
+      <button class="btn" data-copy="${esc(link)}">📋 Copy link</button>
+      <button class="btn secondary" data-copy="${esc(msg)}">📋 Copy message</button>
+      <a class="btn secondary" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">💬 WhatsApp</a>
+      <a class="btn secondary" href="mailto:${encodeURIComponent(email || "")}?subject=${subject}&body=${encodeURIComponent(msg)}">✉️ Email</a>
+    </div>`;
+  }
+
+  function bindCopy(el) {
+    el.querySelectorAll("[data-copy]").forEach((b) => (b.onclick = async () => {
+      const text = b.dataset.copy, label = b.textContent;
+      try { await navigator.clipboard.writeText(text); }
+      catch (e) { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
+      b.textContent = "✅ Copied"; setTimeout(() => (b.textContent = label), 1500);
+    }));
+  }
+
+  function invite(el) {
+    const link = inviteLink({});
+    const msg = inviteMessage(link);
+    el.innerHTML = `
+      <div class="card">
+        <h3>✉️ Invite the whole class</h3>
+        <p class="small muted">Share this link. Students open it, the sign-up form appears with the class code already filled in, and they choose their own password. Google sign-in works too, if it's switched on.</p>
+        <div class="invite-link"><code>${esc(link)}</code></div>
+        ${shareButtons(link, msg)}
+        <div class="row" style="margin-top:14px;align-items:flex-start">
+          <div id="qr" class="qr-box"></div>
+          <div class="small muted" style="flex:1;min-width:200px">
+            <b>📱 Scan to join.</b> Show this QR code on the classroom screen or print it. Students scan it with their phone camera.
+            <div class="row" style="margin-top:8px"><button class="btn secondary" id="printQr">🖨 Print QR poster</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card admin">
+        <h3>👤 Invite one student</h3>
+        <p class="small muted">Their name and email are filled in for them when they open the link.</p>
+        <form id="personal" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">
+          <label class="small">Student's name<input name="name" required placeholder="Riya Kumar"></label>
+          <label class="small">Email (optional)<input name="email" type="email" placeholder="riya@example.com"></label>
+          <div style="align-self:end"><button class="btn" type="submit">Create invite</button></div>
+        </form>
+        <div id="personalOut"></div>
+      </div>
+
+      <div class="card small muted">
+        🔒 Anyone with an invite link can join your class. To stop old links working, change the join code in <b>Settings</b>.
+        Then share a fresh link from this page. Students who already joined are not affected.
+      </div>`;
+    bindCopy(el);
+
+    const qrBox = $("#qr", el);
+    if (window.QRCode) new window.QRCode(qrBox, { text: link, width: 168, height: 168, correctLevel: window.QRCode.CorrectLevel.M });
+    else qrBox.innerHTML = `<p class="small muted">QR code unavailable.</p>`;
+
+    $("#printQr", el).onclick = () => {
+      const img = qrBox.querySelector("img[src]") || qrBox.querySelector("canvas");
+      const src = img && (img.tagName === "CANVAS" ? img.toDataURL() : img.src);
+      const w = window.open("", "_blank");
+      w.document.write(`<!doctype html><meta charset="utf-8"><title>Join ${esc(st.data.settings.school_name)}</title>
+        <style>body{font-family:Arial,sans-serif;text-align:center;padding:40px}img{width:320px;height:320px;image-rendering:pixelated}
+        h1{margin:0 0 8px}p{font-size:18px}code{font-size:26px;font-weight:bold;letter-spacing:2px}</style>
+        <h1>📚 Join ${esc(st.data.settings.school_name)}</h1><p>Scan with your phone camera to create your account</p>
+        ${src ? `<img src="${src}" alt="QR code">` : ""}
+        <p>or open <b>${esc(appUrl())}</b></p><p>Class join code: <code>${esc(st.data.settings.join_code)}</code></p>
+        <script>window.onload=()=>window.print()<\/script>`);
+      w.document.close();
+    };
+
+    $("#personal", el).onsubmit = (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      const name = f.get("name").trim(), email = f.get("email").trim();
+      const plink = inviteLink(email ? { name, email } : { name });
+      const pmsg = inviteMessage(plink, name.split(/\s+/)[0]);
+      const out = $("#personalOut", el);
+      out.innerHTML = `<div class="invite-link" style="margin-top:12px"><code>${esc(plink)}</code></div>${shareButtons(plink, pmsg, email)}`;
+      bindCopy(out);
     };
   }
 

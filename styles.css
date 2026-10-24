@@ -228,3 +228,10 @@ ul.tips li { margin-bottom: 8px; }
 .news-kind { font-size: 22px; }
 .news-text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
 .news-go { color: var(--muted); font-size: 18px; }
+
+/* invitations */
+.invite-link { background: var(--surface-2); border: 1px dashed var(--border); border-radius: 10px; padding: 10px 12px; overflow-wrap: anywhere; }
+.invite-link code { font-size: 13px; }
+.qr-box { background: #fff; padding: 10px; border-radius: 12px; line-height: 0; }
+.invite-banner { background: var(--good-bg); color: var(--good); border-radius: 10px; padding: 10px 12px; font-weight: 600; margin-bottom: 12px; }
+a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }

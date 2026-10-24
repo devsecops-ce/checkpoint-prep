@@ -77,6 +77,13 @@ You can create accounts yourself and hand out the login details, so students don
 5. **Forgot password?** Open the student in **Admin → Students** → **🔑 Reset password**, and give them the new one.
    **Leaving the class?** Use **🗑 Delete account**, or **Disable account** to keep their results.
 
+### Inviting students (they create their own account)
+**🛠 Admin → ✉️ Invite** gives you:
+- A **class invite link** to share by **📋 Copy**, **💬 WhatsApp** or **✉️ Email**, and a **QR code** to show in class or print as a poster.
+- **Invite one student:** enter their name (and email) for a personal link with those details filled in.
+Students open the link, and the sign-up form appears with the class code filled in; they just choose a password.
+To stop old links working, change the join code in **Settings**.
+
 ### What the admin panel does
 | Tab | What you can do |
 |---|---|
