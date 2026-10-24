@@ -218,3 +218,13 @@ ul.tips li { margin-bottom: 8px; }
 .g-logo { font-weight: 800; font-size: 18px; background: conic-gradient(#ea4335 0 25%, #fbbc05 0 50%, #34a853 0 75%, #4285f4 0); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .or-line { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; margin: 16px 0; }
 .or-line::before, .or-line::after { content: ""; flex: 1; border-top: 1px solid var(--border); }
+
+/* guest + news */
+.guest-note { background: var(--warn-bg); border-color: transparent; }
+.news-search { padding: 7px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg); color: var(--text); font: inherit; font-size: 14px; min-width: 180px; }
+.news-list { display: grid; gap: 10px; }
+.news-item { display: flex; gap: 12px; align-items: center; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-left: 5px solid var(--c); border-radius: 12px; text-decoration: none; color: var(--text); box-shadow: var(--shadow); }
+.news-item:hover { background: var(--surface-2); }
+.news-kind { font-size: 22px; }
+.news-text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.news-go { color: var(--muted); font-size: 18px; }

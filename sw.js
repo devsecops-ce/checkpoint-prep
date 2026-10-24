@@ -1,7 +1,7 @@
 // Offline support for the installed (Add to Home Screen) app.
 // App files are served from cache and refreshed in the background; Supabase calls always go to the network.
 // Bump VERSION after changing any file so installed apps pick up the update.
-const VERSION = "cp8-v7";
+const VERSION = "cp8-v8";
 const FILES = [
   "./", "index.html", "styles.css", "app.js", "cloud.js", "admin.js", "config.js", "manifest.webmanifest",
   "vendor/supabase.js",
@@ -21,7 +21,8 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
-  if (e.request.method !== "GET" || url.origin !== self.location.origin) return;
+  // News comes live from the server; never serve it from the offline cache.
+  if (e.request.method !== "GET" || url.origin !== self.location.origin || url.pathname.startsWith("/.netlify/")) return;
   e.respondWith(caches.open(VERSION).then(async (cache) => {
     const cached = await cache.match(e.request, { ignoreSearch: true });
     const fresh = fetch(e.request).then((res) => {

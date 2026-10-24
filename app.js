@@ -31,13 +31,13 @@
     state.subject = subject;
     state.section = section || "overview";
     state.run = null;
-    location.hash = subject === "home" ? "" : `${subject}/${state.section}`;
+    location.hash = subject === "home" || subject === "login" ? "" : `${subject}/${state.section}`;
     render();
     window.scrollTo(0, 0);
   }
   function fromHash() {
     const [s, sec] = location.hash.replace(/^#\/?/, "").split("/");
-    if (s && (SUBJECTS.some((x) => x.id === s) || (s === "admin" && isAdmin()))) { state.subject = s; state.section = sec || "overview"; }
+    if (s && (SUBJECTS.some((x) => x.id === s) || s === "news" || (s === "admin" && isAdmin()))) { state.subject = s; state.section = sec || "overview"; }
   }
 
   // ---------- theme ----------
@@ -90,11 +90,21 @@
       b.onclick = () => go(id);
       nav.appendChild(b);
     };
+    if (guest()) {
+      mk("login", "🔐 Log in");
+      SUBJECTS.filter((s) => PUBLIC_TABS.includes(s.id)).forEach((s) => mk(s.id, `${s.icon} ${esc(s.name)}`, s.color));
+      mk("news", "📰 Cambridge News", NEWS_COLOR);
+      return;
+    }
     mk("home", "🏠 Dashboard");
     SUBJECTS.forEach((s) => mk(s.id, `${s.icon} ${esc(s.name)}`, s.color));
+    mk("news", "📰 Cambridge News", NEWS_COLOR);
     if (isAdmin()) mk("admin", "🛠 Admin", "#475569");
   }
   const isAdmin = () => Cloud.enabled && Cloud.profile && Cloud.profile.role === "admin";
+  // Logged-out visitors can still use these tabs; everything else needs an account.
+  const PUBLIC_TABS = ["mathsboost", "news"];
+  const guest = () => Cloud.enabled && !Cloud.user;
 
   function renderUserChip() {
     const box = $("#userBox");
@@ -181,11 +191,14 @@
     view.style.setProperty("--c", s.color);
     if (state.run) return renderRunner(view, s);
     const labels = s.labels || {};
-    let html = `<div class="subtabs">` +
+    let html = (guest() ? `<div class="card small guest-note">👋 You're practising as a guest, so your progress is saved on this device only.
+      <a href="#" data-login>Log in or create an account</a> to save it to your account and unlock all subjects.</div>` : "") +
+      `<div class="subtabs">` +
       SECTIONS.map(([k, l]) => `<button class="subtab ${state.section === k ? "active" : ""}" data-sec="${k}">${labels[k] || l}</button>`).join("") +
       `</div><div id="sec"></div>`;
     view.innerHTML = html;
     view.querySelectorAll("[data-sec]").forEach((b) => (b.onclick = () => go(s.id, b.dataset.sec)));
+    view.querySelectorAll("[data-login]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); go("login"); }));
     const sec = $("#sec", view);
     ({ overview: secOverview, notes: secNotes, quick: secQuick, papers: secPapers, tips: secTips }[state.section] || secOverview)(sec, s);
   }
@@ -557,19 +570,105 @@
     const view = $("#view");
     view.style.removeProperty("--c");
     view.classList.remove("admin");
+    if (guest()) {
+      if (state.subject === "news") return renderNews(view);
+      const pub = SUBJECTS.find((x) => x.id === state.subject && PUBLIC_TABS.includes(x.id));
+      return pub ? renderSubject(view, pub) : renderAuth(view);
+    }
+    if (state.subject === "news") return renderNews(view);
     if (state.subject === "admin" && isAdmin() && window.Admin) return window.Admin.render(view, SUBJECTS);
     const s = SUBJECTS.find((x) => x.id === state.subject);
     if (!s) renderHome(view); else renderSubject(view, s);
   }
 
+  // ---------- Cambridge news ----------
+  // Headlines come from a small Netlify Function (netlify/functions/news.mjs) that reads Google News,
+  // because browsers can't fetch news feeds directly.
+  const NEWS_COLOR = "#0f766e";
+  const NEWS_URL = /\.netlify\.app$/.test(location.hostname) ? "/.netlify/functions/news"
+    : "https://checkpoint-preparation.netlify.app/.netlify/functions/news";
+  const NEWS_KINDS = [
+    { key: "exams", label: "📝 Exams & results", re: /exam|result|igcse|a level|as level|checkpoint|syllabus|grade|series|assessment/i },
+    { key: "schools", label: "🏫 Schools", re: /school|accredit|campus|student|teacher|principal/i },
+  ];
+  let newsCache = null, newsFilter = "all", newsQuery = "";
+
+  function ago(t) {
+    const m = Math.round((Date.now() - t) / 60000);
+    if (m < 60) return `${Math.max(m, 1)} min ago`;
+    const h = Math.round(m / 60);
+    if (h < 24) return `${h} hour${h > 1 ? "s" : ""} ago`;
+    const d = Math.round(h / 24);
+    return d < 30 ? `${d} day${d > 1 ? "s" : ""} ago` : new Date(t).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  }
+
+  async function renderNews(view) {
+    view.style.setProperty("--c", NEWS_COLOR);
+    view.innerHTML = `
+      <div class="card">
+        <h2 style="margin-bottom:4px">📰 Cambridge News</h2>
+        <p class="muted small" style="margin:0">The latest news about Cambridge International Education, Checkpoint, IGCSE and A Levels. Updated about every 30 minutes. Tap a headline to read the full story on the publisher's website.</p>
+      </div>
+      <div id="newsBody"><div class="card muted">Loading the latest news…</div></div>`;
+    const body = $("#newsBody", view);
+    if (!newsCache || Date.now() - newsCache.at > 10 * 60000) {
+      try {
+        const res = await fetch(NEWS_URL, { cache: "no-store" });
+        if (!res.ok) throw new Error(res.status);
+        newsCache = { at: Date.now(), data: await res.json() };
+      } catch (e) {
+        if (state.subject !== "news") return;
+        body.innerHTML = `<div class="card">
+          <p>${navigator.onLine === false ? "You're offline. Connect to the internet to see the latest news." : "The news couldn't be loaded right now. Please try again in a few minutes."}</p>
+          <div class="row"><button class="btn" id="newsRetry">Try again</button>
+            <a class="btn secondary" href="https://www.cambridgeinternational.org/news/" target="_blank" rel="noopener">Cambridge International news ↗</a></div></div>`;
+        $("#newsRetry", body).onclick = () => { newsCache = null; renderNews(view); };
+        return;
+      }
+    }
+    if (state.subject !== "news") return;
+    const items = (newsCache.data.items || []).map((n) => ({ ...n, t: Date.parse(n.date) || 0,
+      kind: (NEWS_KINDS.find((k) => k.re.test(n.title)) || { key: "other" }).key }));
+
+    const draw = () => {
+      const q = newsQuery.trim().toLowerCase();
+      const shown = items.filter((n) => (newsFilter === "all" || n.kind === newsFilter) && (!q || (n.title + " " + n.source).toLowerCase().includes(q)));
+      body.innerHTML = `
+        <div class="row" style="margin-bottom:12px">
+          <button class="chip ${newsFilter === "all" ? "on" : ""}" data-nf="all">All</button>
+          ${NEWS_KINDS.map((k) => `<button class="chip ${newsFilter === k.key ? "on" : ""}" data-nf="${k.key}">${k.label}</button>`).join("")}
+          <span class="spacer"></span>
+          <input id="newsSearch" class="news-search" placeholder="🔍 Search news" value="${esc(newsQuery)}">
+        </div>
+        ${shown.length ? `<div class="news-list">${shown.map((n) => `
+          <a class="news-item" href="${esc(n.link)}" target="_blank" rel="noopener">
+            <span class="news-kind">${n.kind === "exams" ? "📝" : n.kind === "schools" ? "🏫" : "🌍"}</span>
+            <span class="news-text"><b>${esc(n.title)}</b><span class="small muted">${esc(n.source || "")}${n.t ? " · " + ago(n.t) : ""}</span></span>
+            <span class="news-go">↗</span>
+          </a>`).join("")}</div>` : `<div class="card muted">No stories match.</div>`}
+        <p class="small muted" style="margin-top:12px">Source: Google News. Updated ${newsCache.data.updated ? ago(Date.parse(newsCache.data.updated)) : "recently"}.</p>`;
+      body.querySelectorAll("[data-nf]").forEach((b) => (b.onclick = () => { newsFilter = b.dataset.nf; draw(); }));
+      const search = $("#newsSearch", body);
+      search.oninput = () => { newsQuery = search.value; draw(); const s2 = $("#newsSearch", body); s2.focus(); s2.setSelectionRange(s2.value.length, s2.value.length); };
+    };
+    draw();
+  }
+
   // ---------- accounts ----------
+  let authMsg = null;
   function showAuth(message) {
     stopTimer();
-    state.subject = "home"; state.section = "overview"; state.run = null;
-    history.replaceState(null, "", location.pathname + location.search);
-    $("#subjectTabs").innerHTML = "";
-    renderUserChip();
-    const view = $("#view");
+    state.run = null;
+    if (!PUBLIC_TABS.includes(state.subject)) {
+      state.subject = "login"; state.section = "overview";
+      history.replaceState(null, "", location.pathname + location.search);
+    }
+    authMsg = message || null;
+    progress = load(); // guest practice is kept on this device
+    render();
+  }
+
+  function renderAuth(view) {
     let mode = "login";
     const draw = (msg, isErr) => {
       view.innerHTML = `
@@ -613,7 +712,8 @@
         } catch (err) { draw(err.message, true); }
       };
     };
-    draw(message, true);
+    draw(authMsg, true);
+    authMsg = null;
   }
 
   // A Google sign-in that hasn't entered the class join code yet.
