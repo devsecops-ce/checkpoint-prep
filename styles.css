@@ -235,3 +235,12 @@ ul.tips li { margin-bottom: 8px; }
 .qr-box { background: #fff; padding: 10px; border-radius: 12px; line-height: 0; }
 .invite-banner { background: var(--good-bg); color: var(--good); border-radius: 10px; padding: 10px 12px; font-weight: 600; margin-bottom: 12px; }
 a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+
+/* admin answer review */
+.ans-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.ans { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+.ans h5 { margin: 0 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.ans.right { background: var(--good-bg); }
+.ans.wrong { background: var(--bad-bg); }
+.ans.part, .ans.pending { background: var(--warn-bg); }
+@media (max-width: 600px) { .ans-grid { grid-template-columns: 1fr; } }

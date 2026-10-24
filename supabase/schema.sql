@@ -361,3 +361,7 @@ revoke all on function public.admin_delete_student(uuid) from public, anon;
 grant execute on function public.admin_create_student(text, text, text) to authenticated;
 grant execute on function public.admin_set_password(uuid, text) to authenticated;
 grant execute on function public.admin_delete_student(uuid) to authenticated;
+
+-- ---------- the student's answers, so admins can review a completed test ----------
+-- { "a": { "<question index>": <chosen option index or typed text> }, "s": { "<question index>": <self-awarded marks> } }
+alter table public.attempts add column if not exists answers jsonb;

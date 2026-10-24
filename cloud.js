@@ -151,7 +151,7 @@
       // op.key identifies one sitting of a test so self-marking updates the same row
       const known = Cloud._attemptIds[op.key];
       if (known) {
-        const { error } = await sb.from("attempts").update({ score: op.row.score, topics: op.row.topics }).eq("id", known);
+        const { error } = await sb.from("attempts").update({ score: op.row.score, topics: op.row.topics, answers: op.row.answers }).eq("id", known);
         if (error) throw error;
       } else {
         const { data, error } = await sb.from("attempts").insert({ ...op.row, user_id: Cloud.user.id }).select("id").single();

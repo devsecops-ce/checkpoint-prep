@@ -118,7 +118,7 @@
   }
   const isAdmin = () => Cloud.enabled && Cloud.profile && Cloud.profile.role === "admin";
   // Logged-out visitors can still use these tabs; everything else needs an account.
-  const PUBLIC_TABS = ["mathsboost", "rishitha", "news"];
+  const PUBLIC_TABS = ["mathsboost", "rishitha", "rishithaeng", "news"];
   const guest = () => Cloud.enabled && !Cloud.user;
   // With accounts on, the public tabs live only on the login page.
   const memberSubjects = () => (Cloud.enabled ? SUBJECTS.filter((s) => !PUBLIC_TABS.includes(s.id)) : SUBJECTS);
@@ -413,6 +413,8 @@
     window.scrollTo(0, 0);
   }
 
+  // Shared with the admin panel's answer review.
+  window.CheckpointApp = { autoMark: (q, a) => autoMark(q, a) };
   function autoMark(q, a) {
     if (q.type === "mcq") return a === q.answer ? q.marks : 0;
     if (q.type === "short") {
@@ -563,6 +565,7 @@
       Cloud.saveAttempt(run.key, {
         subject_id: s.id, test_id: run.test.id, test_title: run.test.title,
         kind: run.kind, score: got, max, topics: runTopics,
+        answers: { a: run.answers, s: run.self },
       });
     }
   }

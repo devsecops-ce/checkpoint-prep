@@ -1,11 +1,11 @@
 // Offline support for the installed (Add to Home Screen) app.
 // App files come from the network when online and from the cache when offline; Supabase calls always go to the network.
 // Bump VERSION after changing any file so installed apps pick up the update.
-const VERSION = "cp8-v13";
+const VERSION = "cp8-v15";
 const FILES = [
   "./", "index.html", "styles.css", "app.js", "cloud.js", "admin.js", "config.js", "manifest.webmanifest",
   "vendor/supabase.js", "vendor/qrcode.min.js",
-  "data/maths.js", "data/science.js", "data/english.js", "data/esl.js", "data/global.js", "data/computing.js", "data/mathsboost.js", "data/rishitha.js",
+  "data/maths.js", "data/science.js", "data/english.js", "data/esl.js", "data/global.js", "data/computing.js", "data/mathsboost.js", "data/rishitha.js", "data/rishithaeng.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png",
 ];
 

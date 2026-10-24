@@ -401,11 +401,12 @@
         }).join("")}</table></div></div>
       <div class="card"><h3>Recent attempts</h3>
         ${mine.length ? `<div class="table-wrap"><table><tr><th>Date</th><th>Subject</th><th>Test</th><th>Score</th></tr>
-          ${mine.slice(0, 50).map((a) => `<tr><td class="small">${fmtDate(a.created_at)}</td><td>${esc(subjectName(a.subject_id))}</td>
-            <td>${esc(a.test_title || a.test_id)}</td><td>${a.score}/${a.max} ${pill(pct(a.score, a.max))}</td></tr>`).join("")}</table></div>`
+          ${mine.slice(0, 50).map((a) => `<tr class="click" data-att="${a.id}"><td class="small">${fmtDate(a.created_at)}</td><td>${esc(subjectName(a.subject_id))}</td>
+            <td>${esc(a.test_title || a.test_id)}</td><td>${a.score}/${a.max} ${pill(pct(a.score, a.max))}</td><td class="small">👁 View answers</td></tr>`).join("")}</table></div>`
           : `<p class="muted">No tests taken yet.</p>`}
       </div>`;
     $("#backList", el).onclick = () => { st.student = null; render(view, st.subjects); };
+    el.querySelectorAll("[data-att]").forEach((r) => (r.onclick = () => showAttempt(el, view, p, mine.find((a) => String(a.id) === r.dataset.att))));
     const msg = $("#msg", el);
     const update = async (patch, ok) => {
       const { error } = await window.Cloud.client.from("profiles").update(patch).eq("id", p.id);
@@ -451,6 +452,48 @@
           update({ active: !p.active }, p.active ? "Account disabled." : "Account re-enabled.");
       };
     }
+  }
+
+  // ---------- one completed test: every question with the student's answer ----------
+  async function showAttempt(el, view, student, att) {
+    const subj = st.subjects.find((s) => s.id === att.subject_id);
+    const test = subj && [...subj.papers, ...subj.quickTests].find((t) => t.id === att.test_id);
+    el.innerHTML = `<button class="ghost" id="backStudent">← ${esc(student.full_name)}</button><div id="attBody"><div class="card muted">Loading answers…</div></div>`;
+    $("#backStudent", el).onclick = () => studentDetail(el, view);
+    const body = $("#attBody", el);
+    const { data, error } = await window.Cloud.client.from("attempts").select("answers").eq("id", att.id).single();
+    if (error) { body.innerHTML = `<div class="card">Could not load answers: ${esc(window.Cloud.friendly(error))}</div>`; return; }
+    const head = `<div class="card"><h2 style="margin:0 0 4px">${esc(att.test_title || att.test_id)}</h2>
+      <p class="muted small" style="margin:0">${esc(student.full_name)} · ${esc(subjectName(att.subject_id))} · ${fmtDate(att.created_at)} ·
+      <b>${att.score}/${att.max}</b> ${pill(pct(att.score, att.max))}</p></div>`;
+    if (!test) { body.innerHTML = head + `<div class="card muted">This test is no longer in the app, so its questions can't be shown.</div>`; return; }
+    if (!data.answers) { body.innerHTML = head + `<div class="card muted">Answers were not saved for this attempt. Only tests taken after the answer-review update keep the student's answers.</div>`; return; }
+
+    const A = data.answers.a || {}, S = data.answers.s || {};
+    const mark = window.CheckpointApp ? window.CheckpointApp.autoMark : () => null;
+    const letter = (i) => String.fromCharCode(65 + i);
+    body.innerHTML = head + (test.passage ? `<details class="card"><summary style="cursor:pointer"><b>📖 Show the reading text</b></summary><div class="passage" style="margin-top:10px">${test.passage}</div></details>` : "") +
+      test.questions.map((q, i) => {
+        const a = A[i];
+        const blank = a == null || a === "";
+        let got = mark(q, a);
+        if (got == null) got = S[i];
+        const status = got == null ? "pending" : got >= q.marks ? "right" : got > 0 ? "part" : "wrong";
+        const icon = { right: "✅", part: "🟡", wrong: "❌", pending: "⏳" }[status];
+        const yours = blank ? `<i class="muted">No answer</i>`
+          : q.type === "mcq" ? `${letter(a)}. ${q.options[a]}`
+          : `<span style="white-space:pre-wrap">${esc(a)}</span>`;
+        const correct = q.type === "mcq" ? `${letter(q.answer)}. ${q.options[q.answer]}` : q.answer;
+        return `<div class="q ${status === "right" ? "correct" : status === "wrong" ? "wrong" : ""}">
+          <div class="qhead"><span class="qnum">${icon} Q${i + 1}</span>
+            <span class="small muted">${esc(q.topic)} · ${got == null ? "not marked" : got + "/" + q.marks} mark${q.marks > 1 ? "s" : ""}</span></div>
+          <div>${q.q}</div>
+          <div class="ans-grid">
+            <div class="ans ${status}"><h5>Student's answer</h5><div>${yours}</div>${q.type === "long" && got != null ? `<div class="small muted">Self-marked: ${got}/${q.marks}</div>` : ""}</div>
+            <div class="ans"><h5>${q.type === "long" ? "Model answer" : "Correct answer"}</h5><div>${correct}</div></div>
+          </div>
+        </div>`;
+      }).join("");
   }
 
   function subjectsView(el) {
